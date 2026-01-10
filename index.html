@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>English Sentence Puzzle | 中学生向け英語並べ替え</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__content">
+      <p class="hero__tag">英語の語順を身につけよう</p>
+      <h1>English Sentence Puzzle</h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card home" aria-labelledby="home-title" id="home-screen">
+      <div class="card__header">
+        <div>
+          <h2 id="home-title">出題範囲を選択</h2>
+        </div>
+      </div>
+      <div class="level-select">
+        <div class="filter-group" aria-label="学年選択">
+          <p class="filter-group__title">学年選択</p>
+          <div class="filter-group__options" id="grade-filters"></div>
+        </div>
+        <div class="filter-group" aria-label="文法項目選択">
+          <p class="filter-group__title">文法項目選択</p>
+          <div class="filter-group__options" id="grammar-filters"></div>
+        </div>
+        <div class="filter-group" aria-label="難易度選択">
+          <p class="filter-group__title">難易度</p>
+          <div class="filter-group__options" id="level-filters"></div>
+        </div>
+        <div class="level-progress" id="level-progress"></div>
+      </div>
+      <div class="home-actions">
+        <button class="button" id="start-set-btn" type="button">10問を始める</button>
+        <button class="button button--ghost" id="reset-stats-btn" type="button">記録をリセット</button>
+      </div>
+      <p class="home-status" id="home-status" role="status"></p>
+    </section>
+
+    <section class="card" aria-labelledby="lesson-title" id="quiz-screen" hidden>
+      <div class="card__header">
+        <div></div>
+      </div>
+
+      <div class="prompt">
+        <span class="prompt__label">問題</span>
+        <p class="prompt__text" id="japanese-hint">わたしは毎日バスで学校に行きます。</p>
+      </div>
+
+      <div class="prompt prompt--answer" id="answer-example" hidden>
+        <span class="prompt__label">正解例</span>
+        <div class="slots slots--answer" id="answer-slots" aria-label="正解例スロット"></div>
+      </div>
+
+      <div class="answer-area" aria-live="polite">
+        <h3>解答</h3>
+        <p class="answer-area__guide">単語を正しい場所に置こう。</p>
+        <div class="slots" id="slots" aria-label="空欄スロット"></div>
+        <div class="answer-actions">
+          <button class="button" id="check-btn" type="button">答え合わせ</button>
+          <button class="button button--ghost" id="reset-btn" type="button">リセット</button>
+          <button class="button button--ghost" id="next-btn" type="button" hidden>次の問題へ</button>
+        </div>
+        <p class="feedback" id="feedback" role="status"></p>
+      </div>
+
+      <div class="word-bank" aria-label="単語ピース">
+        <h3>単語ピース</h3>
+        <div class="word-bank__list" id="word-bank"></div>
+      </div>
+
+      <div class="progress" aria-label="進み具合">
+        <span id="progress-text">1 / 4 問目</span>
+        <div class="progress__bar">
+          <div class="progress__value" id="progress-value"></div>
+        </div>
+      </div>
+
+      <div class="set-summary" id="set-summary" hidden>
+        <h3>10問セットの結果</h3>
+        <p class="set-summary__score" id="set-score"></p>
+        <p class="set-summary__message" id="set-message"></p>
+        <button class="button" id="set-next-btn" type="button">次の10問</button>
+      </div>
+
+      <div class="quiz-footer">
+        <button class="button button--ghost" id="home-btn" type="button">ホームへ戻る</button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <p>© 2025 English Sentence Puzzle. 英語の語順を楽しく学ぼう。</p>
+  </footer>
+
+  <div class="confetti" id="confetti" aria-hidden="true"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
