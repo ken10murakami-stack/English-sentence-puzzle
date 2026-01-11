@@ -24,23 +24,54 @@
       <div class="level-select">
         <div class="filter-group" aria-label="学年選択">
           <p class="filter-group__title">学年選択</p>
-          <div class="filter-group__options" id="grade-filters"></div>
+          <div class="filter-group__options" id="grade-filters">
+            <label class="filter-option"><input type="checkbox" value="中1"><span>中1</span></label>
+            <label class="filter-option"><input type="checkbox" value="中2"><span>中2</span></label>
+            <label class="filter-option"><input type="checkbox" value="中3"><span>中3</span></label>
+          </div>
         </div>
         <div class="filter-group" aria-label="文法項目選択">
           <p class="filter-group__title">文法項目選択</p>
-          <div class="filter-group__options" id="grammar-filters"></div>
+          <div class="filter-group__options" id="grammar-filters">
+            <label class="filter-option"><input type="checkbox" value="be動詞"><span>be動詞</span></label>
+            <label class="filter-option"><input type="checkbox" value="一般動詞（現在形）"><span>一般動詞（現在形）</span></label>
+            <label class="filter-option"><input type="checkbox" value="三人称単数現在"><span>三人称単数現在</span></label>
+            <label class="filter-option"><input type="checkbox" value="現在進行形"><span>現在進行形</span></label>
+            <label class="filter-option"><input type="checkbox" value="There is / There are"><span>There is / There are</span></label>
+            <label class="filter-option"><input type="checkbox" value="命令文"><span>命令文</span></label>
+            <label class="filter-option"><input type="checkbox" value="疑問詞"><span>疑問詞</span></label>
+            <label class="filter-option"><input type="checkbox" value="過去形"><span>過去形</span></label>
+            <label class="filter-option"><input type="checkbox" value="過去進行形"><span>過去進行形</span></label>
+            <label class="filter-option"><input type="checkbox" value="未来表現"><span>未来表現</span></label>
+            <label class="filter-option"><input type="checkbox" value="接続詞"><span>接続詞</span></label>
+            <label class="filter-option"><input type="checkbox" value="比較級"><span>比較級</span></label>
+            <label class="filter-option"><input type="checkbox" value="最上級"><span>最上級</span></label>
+            <label class="filter-option"><input type="checkbox" value="受動態"><span>受動態</span></label>
+            <label class="filter-option"><input type="checkbox" value="現在完了形"><span>現在完了形</span></label>
+            <label class="filter-option"><input type="checkbox" value="関係代名詞（主格）"><span>関係代名詞（主格）</span></label>
+            <label class="filter-option"><input type="checkbox" value="間接疑問文"><span>間接疑問文</span></label>
+            <label class="filter-option"><input type="checkbox" value="仮定法"><span>仮定法</span></label>
+            <label class="filter-option"><input type="checkbox" value="現在完了進行形"><span>現在完了進行形</span></label>
+            <label class="filter-option"><input type="checkbox" value="関係代名詞（目的格）"><span>関係代名詞（目的格）</span></label>
+            <label class="filter-option"><input type="checkbox" value="関係代名詞（所有格）"><span>関係代名詞（所有格）</span></label>
+            <label class="filter-option"><input type="checkbox" value="仮定法（過去完了）"><span>仮定法（過去完了）</span></label>
+          </div>
         </div>
         <div class="filter-group" aria-label="難易度選択">
           <p class="filter-group__title">難易度</p>
-          <div class="filter-group__options" id="level-filters"></div>
+          <div class="filter-group__options" id="level-filters">
+            <label class="filter-option"><input type="checkbox" value="1"><span>レベル1</span></label>
+            <label class="filter-option"><input type="checkbox" value="2"><span>レベル2</span></label>
+            <label class="filter-option"><input type="checkbox" value="3"><span>レベル3</span></label>
+          </div>
         </div>
-        <div class="level-progress" id="level-progress"></div>
+        <div class="level-progress" id="level-progress">正解達成率: <strong>0%</strong></div>
       </div>
       <div class="home-actions">
         <button class="button" id="start-set-btn" type="button">10問を始める</button>
         <button class="button button--ghost" id="reset-stats-btn" type="button">記録をリセット</button>
       </div>
-      <p class="home-status" id="home-status" role="status"></p>
+      <p class="home-status" id="home-status" role="status">準備OK！10問1セットに挑戦しよう。</p>
     </section>
 
     <section class="card" aria-labelledby="lesson-title" id="quiz-screen" hidden>
