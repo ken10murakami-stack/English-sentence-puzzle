@@ -5,7 +5,7 @@ const STATS_KEY = "englishPuzzleStats";
 let currentSet = [];
 let setIndex = 0;
 let setScore = 0;
-const gradeOptions = ["中1", "中2", "中3"];
+let gradeOptions = ["中1", "中2", "中3"];
 let selectedGrades = new Set(gradeOptions);
 let selectedGrammar = new Set();
 let selectedLevels = new Set([1, 2, 3]);
@@ -606,7 +606,6 @@ wordBank.addEventListener("drop", (event) => {
   }
 });
 
-
 const addWord = (word) => {
   const lesson = currentLesson();
   const selectedCount = countOccurrences(slotWords.flat())[word] ?? 0;
@@ -653,6 +652,14 @@ const areSlotWordsEqual = (currentSlots, expectedSlots) =>
 
 const applyLessons = (newLessons) => {
   lessons = assignLessonIds(newLessons);
+  const derivedGrades = Array.from(
+    new Set(lessons.map((lesson) => lesson.grade).filter(Boolean))
+  );
+  if (derivedGrades.length > 0) {
+    gradeOptions = derivedGrades;
+  }
+  selectedGrades = new Set(gradeOptions);
+  selectedGrammar = new Set();
   currentSet = [];
   setIndex = 0;
   setScore = 0;
@@ -664,7 +671,6 @@ const applyLessons = (newLessons) => {
   updateHomeStatus();
   updateLevelProgress();
 };
-
 
 const returnHome = () => {
   quizScreen.hidden = true;
