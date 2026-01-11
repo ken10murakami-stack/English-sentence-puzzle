@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -24,6 +23,7 @@
       <div class="level-select">
         <div class="filter-group" aria-label="学年選択">
           <p class="filter-group__title">学年選択</p>
+          <div class="filter-group__options" id="grade-filters"></div>
           <div class="filter-group__options" id="grade-filters">
             <label class="filter-option"><input type="checkbox" value="中1"><span>中1</span></label>
             <label class="filter-option"><input type="checkbox" value="中2"><span>中2</span></label>
@@ -32,6 +32,7 @@
         </div>
         <div class="filter-group" aria-label="文法項目選択">
           <p class="filter-group__title">文法項目選択</p>
+          <div class="filter-group__options" id="grammar-filters"></div>
           <div class="filter-group__options" id="grammar-filters">
             <label class="filter-option"><input type="checkbox" value="be動詞"><span>be動詞</span></label>
             <label class="filter-option"><input type="checkbox" value="一般動詞（現在形）"><span>一般動詞（現在形）</span></label>
@@ -59,19 +60,35 @@
         </div>
         <div class="filter-group" aria-label="難易度選択">
           <p class="filter-group__title">難易度</p>
+          <div class="filter-group__options" id="level-filters"></div>
           <div class="filter-group__options" id="level-filters">
             <label class="filter-option"><input type="checkbox" value="1"><span>レベル1</span></label>
             <label class="filter-option"><input type="checkbox" value="2"><span>レベル2</span></label>
             <label class="filter-option"><input type="checkbox" value="3"><span>レベル3</span></label>
           </div>
         </div>
+        <div class="level-progress" id="level-progress"></div>
         <div class="level-progress" id="level-progress">正解達成率: <strong>0%</strong></div>
       </div>
       <div class="home-actions">
         <button class="button" id="start-set-btn" type="button">10問を始める</button>
         <button class="button button--ghost" id="reset-stats-btn" type="button">記録をリセット</button>
       </div>
+      <p class="home-status" id="home-status" role="status"></p>
       <p class="home-status" id="home-status" role="status">準備OK！10問1セットに挑戦しよう。</p>
+      <div class="sheet-loader" aria-label="スプレッドシート読み込み">
+        <p class="sheet-loader__title">スプレッドシートから問題を読み込む</p>
+        <div class="sheet-loader__controls">
+          <input
+            class="sheet-loader__input"
+            id="sheet-url"
+            type="url"
+            placeholder="Google スプレッドシートのURLを貼り付け"
+          >
+          <button class="button" id="load-sheet-btn" type="button">読み込む</button>
+        </div>
+        <p class="sheet-loader__hint">公開済みのシートURLを貼り付けてください。</p>
+      </div>
     </section>
 
     <section class="card" aria-labelledby="lesson-title" id="quiz-screen" hidden>
@@ -97,43 +114,3 @@
           <button class="button" id="check-btn" type="button">答え合わせ</button>
           <button class="button button--ghost" id="reset-btn" type="button">リセット</button>
           <button class="button button--ghost" id="next-btn" type="button" hidden>次の問題へ</button>
-        </div>
-        <p class="feedback" id="feedback" role="status"></p>
-      </div>
-
-      <div class="word-bank" aria-label="単語ピース">
-        <h3>単語ピース</h3>
-        <div class="word-bank__list" id="word-bank"></div>
-      </div>
-
-      <div class="progress" aria-label="進み具合">
-        <span id="progress-text">1 / 4 問目</span>
-        <div class="progress__bar">
-          <div class="progress__value" id="progress-value"></div>
-        </div>
-      </div>
-
-      <div class="set-summary" id="set-summary" hidden>
-        <h3>10問セットの結果</h3>
-        <p class="set-summary__score" id="set-score"></p>
-        <p class="set-summary__message" id="set-message"></p>
-        <button class="button" id="set-next-btn" type="button">次の10問</button>
-      </div>
-
-      <div class="quiz-footer">
-        <button class="button button--ghost" id="home-btn" type="button">ホームへ戻る</button>
-      </div>
-
-    </section>
-
-  </main>
-
-  <footer class="footer">
-    <p>© 2025 English Sentence Puzzle. 英語の語順を楽しく学ぼう。</p>
-  </footer>
-
-  <div class="confetti" id="confetti" aria-hidden="true"></div>
-
-  <script src="app.js"></script>
-</body>
-</html>
