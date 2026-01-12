@@ -46,6 +46,9 @@ const setMessage = document.getElementById("set-message");
 const setNextBtn = document.getElementById("set-next-btn");
 const sheetUrlInput = document.getElementById("sheet-url");
 const loadSheetBtn = document.getElementById("load-sheet-btn");
+const toggleProgressBtn = document.getElementById("toggle-progress-btn");
+const progressPanel = document.getElementById("progress-panel");
+const progressTables = document.getElementById("progress-tables");
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1A4oxIkzDYQ2sAhdLCATzU2Yi7-jflm01kkxhIjmuLo4/edit?gid=863237441#gid=863237441";
 
@@ -529,6 +532,67 @@ const updateLevelProgress = () => {
       : `正解達成率: <strong>${rate}%</strong>`;
 };
 
+const calculateAchievementRate = (lessonSubset, stats) => {
+  if (lessonSubset.length === 0) {
+    return null;
+  }
+  const correct = lessonSubset.filter((lesson) => getLessonStats(stats, lesson.id).correct > 0)
+    .length;
+  return Math.round((correct / lessonSubset.length) * 100);
+};
+
+const renderProgressTables = () => {
+  const stats = loadStats();
+  const grammarOptions = Array.from(
+    new Set(lessons.map((lesson) => lesson.grammar).filter(Boolean))
+  );
+  progressTables.innerHTML = "";
+  [1, 2, 3].forEach((level) => {
+    const table = document.createElement("table");
+    table.className = "progress-table";
+
+    const caption = document.createElement("caption");
+    caption.textContent = `レベル${level}`;
+    table.appendChild(caption);
+
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    const thLabel = document.createElement("th");
+    thLabel.textContent = "文法項目 / 学年";
+    headRow.appendChild(thLabel);
+    gradeOptions.forEach((grade) => {
+      const th = document.createElement("th");
+      th.textContent = grade;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    grammarOptions.forEach((grammar) => {
+      const row = document.createElement("tr");
+      const grammarCell = document.createElement("td");
+      grammarCell.textContent = grammar;
+      row.appendChild(grammarCell);
+      gradeOptions.forEach((grade) => {
+        const cell = document.createElement("td");
+        const subset = lessons.filter(
+          (lesson) =>
+            lesson.level === level &&
+            lesson.grade === grade &&
+            lesson.grammar === grammar
+        );
+        const rate = calculateAchievementRate(subset, stats);
+        cell.textContent = rate === null ? "-" : `${rate}%`;
+        row.appendChild(cell);
+      });
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    progressTables.appendChild(table);
+  });
+};
+
 const startSet = () => {
   currentSet = pickSetLessons();
   if (currentSet.length === 0) {
@@ -672,6 +736,9 @@ const applyLessons = (newLessons) => {
   renderLevelFilters();
   updateHomeStatus();
   updateLevelProgress();
+  if (!progressPanel.hidden) {
+    renderProgressTables();
+  }
 };
 
 const returnHome = () => {
@@ -690,6 +757,9 @@ const resetStats = () => {
   clearStats();
   updateHomeStatus();
   updateLevelProgress();
+  if (!progressPanel.hidden) {
+    renderProgressTables();
+  }
 };
 
 const loadSheetLessons = async (sheetUrl) => {
@@ -746,6 +816,9 @@ const checkAnswer = () => {
     nextBtn.hidden = false;
   }
   updateHomeStatus();
+  if (!progressPanel.hidden) {
+    renderProgressTables();
+  }
 };
 
 const triggerConfetti = (mode) => {
@@ -775,6 +848,12 @@ startSetBtn.addEventListener("click", startSet);
 setNextBtn.addEventListener("click", startSet);
 homeBtn.addEventListener("click", returnHome);
 resetStatsBtn.addEventListener("click", resetStats);
+toggleProgressBtn.addEventListener("click", () => {
+  progressPanel.hidden = !progressPanel.hidden;
+  if (!progressPanel.hidden) {
+    renderProgressTables();
+  }
+});
 loadSheetBtn.addEventListener("click", () => {
   const rawUrl = sheetUrlInput.value.trim();
   if (!rawUrl) {
