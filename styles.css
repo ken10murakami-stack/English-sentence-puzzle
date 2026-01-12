@@ -186,40 +186,6 @@ body {
   text-align: left;
 }
 
-.sheet-loader {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  border-radius: 1rem;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-}
-
-.sheet-loader__title {
-  font-weight: 600;
-}
-
-.sheet-loader__controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-.sheet-loader__input {
-  flex: 1 1 260px;
-  min-width: 220px;
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.75rem;
-  border: 1px solid var(--border);
-  font-size: 0.95rem;
-}
-
-.sheet-loader__hint {
-  margin-top: 0.75rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-}
-
 .set-summary {
   margin-top: 2rem;
   padding: 1.5rem;
