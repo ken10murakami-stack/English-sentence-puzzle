@@ -44,8 +44,6 @@ const setSummary = document.getElementById("set-summary");
 const setScoreText = document.getElementById("set-score");
 const setMessage = document.getElementById("set-message");
 const setNextBtn = document.getElementById("set-next-btn");
-const sheetUrlInput = document.getElementById("sheet-url");
-const loadSheetBtn = document.getElementById("load-sheet-btn");
 const toggleProgressBtn = document.getElementById("toggle-progress-btn");
 const progressPanel = document.getElementById("progress-panel");
 const progressTables = document.getElementById("progress-tables");
@@ -854,25 +852,11 @@ toggleProgressBtn.addEventListener("click", () => {
     renderProgressTables();
   }
 });
-loadSheetBtn.addEventListener("click", () => {
-  const rawUrl = sheetUrlInput.value.trim();
-  if (!rawUrl) {
-    homeStatus.textContent = "スプレッドシートのURLを入力してください。";
-    return;
-  }
-  if (!buildSheetCsvUrl(rawUrl)) {
-    homeStatus.textContent = "有効なスプレッドシートURLを入力してください。";
-    return;
-  }
-  homeStatus.textContent = "シートを読み込み中です...";
-  loadSheetLessons(rawUrl);
-});
 
 renderGradeFilters();
 renderGrammarFilters();
 renderLevelFilters();
 updateHomeStatus();
 updateLevelProgress();
-sheetUrlInput.value = DEFAULT_SHEET_URL;
 
 loadSheetLessons(DEFAULT_SHEET_URL);
