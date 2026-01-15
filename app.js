@@ -9,6 +9,7 @@ let gradeOptions = ["中1", "中2", "中3"];
 let selectedGrades = new Set(gradeOptions);
 let selectedGrammar = new Set();
 let selectedLevels = new Set([1, 2, 3]);
+let wrongOnlyMode = false;
 const slotLabels = [
   "⓪疑問文のとき",
   "①だれは/何は",
@@ -38,6 +39,7 @@ const grammarFilters = document.getElementById("grammar-filters");
 const levelFilters = document.getElementById("level-filters");
 const startSetBtn = document.getElementById("start-set-btn");
 const resetStatsBtn = document.getElementById("reset-stats-btn");
+const toggleWrongOnlyBtn = document.getElementById("toggle-wrong-only-btn");
 const homeStatus = document.getElementById("home-status");
 const levelProgress = document.getElementById("level-progress");
 const setSummary = document.getElementById("set-summary");
@@ -93,6 +95,8 @@ const clearStats = () => {
 
 const getLessonStats = (stats, lessonId) =>
   stats[lessonId] ?? { correct: 0, wrong: 0, attempts: 0 };
+
+const isWrongOnlyEligible = (stats, lesson) => getLessonStats(stats, lesson.id).wrong > 0;
 
 const updateLessonStats = (lessonId, isCorrect) => {
   const stats = loadStats();
@@ -468,7 +472,8 @@ const pickSetLessons = () => {
     .filter((item) => selectedGrades.has(item.lesson.grade))
     .filter((item) =>
       selectedGrammar.size === 0 ? true : selectedGrammar.has(item.lesson.grammar)
-    );
+    )
+    .filter((item) => (wrongOnlyMode ? isWrongOnlyEligible(stats, item.lesson) : true));
   const prioritized = eligible.map(({ lesson, index }) => {
     const entry = getLessonStats(stats, lesson.id);
     return {
@@ -496,19 +501,23 @@ const pickSetLessons = () => {
   return prioritized.slice(0, SET_SIZE).map((item) => item.lessonIndex);
 };
 
-const filteredLessons = () =>
-  lessons.filter(
-    (lesson) =>
+const filteredLessons = (stats = loadStats()) =>
+  lessons.filter((lesson) => {
+    const matchesFilters =
       selectedLevels.has(lesson.level) &&
       selectedGrades.has(lesson.grade) &&
-      (selectedGrammar.size === 0 || selectedGrammar.has(lesson.grammar))
-  );
+      (selectedGrammar.size === 0 || selectedGrammar.has(lesson.grammar));
+    const matchesWrongOnly = wrongOnlyMode ? isWrongOnlyEligible(stats, lesson) : true;
+    return matchesFilters && matchesWrongOnly;
+  });
 
 const updateHomeStatus = () => {
   const stats = loadStats();
-  const levelLessons = filteredLessons();
+  const levelLessons = filteredLessons(stats);
   if (levelLessons.length === 0) {
-    homeStatus.textContent = "条件に合う問題がありません。";
+    homeStatus.textContent = wrongOnlyMode
+      ? "間違えた問題がありません。"
+      : "条件に合う問題がありません。";
     return;
   }
   const allCorrect = levelLessons.every((lesson) => getLessonStats(stats, lesson.id).correct > 0);
@@ -519,7 +528,7 @@ const updateHomeStatus = () => {
 
 const updateLevelProgress = () => {
   const stats = loadStats();
-  const levelLessons = filteredLessons();
+  const levelLessons = filteredLessons(stats);
   const total = levelLessons.length;
   const correct = levelLessons.filter((lesson) => getLessonStats(stats, lesson.id).correct > 0)
     .length;
@@ -846,6 +855,12 @@ startSetBtn.addEventListener("click", startSet);
 setNextBtn.addEventListener("click", startSet);
 homeBtn.addEventListener("click", returnHome);
 resetStatsBtn.addEventListener("click", resetStats);
+toggleWrongOnlyBtn.addEventListener("click", () => {
+  wrongOnlyMode = !wrongOnlyMode;
+  toggleWrongOnlyBtn.textContent = wrongOnlyMode ? "間違い問題モード: ON" : "間違い問題モード: OFF";
+  updateHomeStatus();
+  updateLevelProgress();
+});
 toggleProgressBtn.addEventListener("click", () => {
   progressPanel.hidden = !progressPanel.hidden;
   if (!progressPanel.hidden) {
