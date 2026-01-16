@@ -104,6 +104,7 @@ const updateLessonStats = (lessonId, isCorrect) => {
   entry.attempts += 1;
   if (isCorrect) {
     entry.correct += 1;
+    entry.wrong = 0;
   } else {
     entry.wrong += 1;
   }
