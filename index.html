@@ -1,160 +1,524 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>English Sentence Puzzle | 中学生向け英語並べ替え</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <header class="hero">
-    <div class="hero__content">
-      <p class="hero__tag">英語の語順を身につけよう</p>
-      <h1>English Sentence Puzzle</h1>
-    </div>
-  </header>
+:root {
+  color-scheme: light;
+  --primary: #3a5bfd;
+  --primary-dark: #2c43c7;
+  --secondary: #f4f6ff;
+  --accent: #ffb74d;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  font-family: "Noto Sans JP", "Hiragino Kaku Gothic Pro", "Segoe UI", sans-serif;
+}
 
-  <main class="container">
-    <section class="card home" aria-labelledby="home-title" id="home-screen">
-      <div class="card__header">
-        <div>
-          <h2 id="home-title">出題範囲を選択</h2>
-        </div>
-      </div>
-      <div class="level-select">
-        <div class="filter-group" aria-label="学年選択">
-          <p class="filter-group__title">学年選択</p>
-          <div class="filter-group__options" id="grade-filters">
-            <label class="filter-option"><input type="checkbox" value="中1"><span>中1</span></label>
-            <label class="filter-option"><input type="checkbox" value="中2"><span>中2</span></label>
-            <label class="filter-option"><input type="checkbox" value="中3"><span>中3</span></label>
-          </div>
-        </div>
-        <div class="filter-group" aria-label="文法項目選択">
-          <p class="filter-group__title">文法項目選択</p>
-          <div class="filter-group__options" id="grammar-filters">
-            <label class="filter-option"><input type="checkbox" value="be動詞"><span>be動詞</span></label>
-            <label class="filter-option"><input type="checkbox" value="一般動詞（現在形）"><span>一般動詞（現在形）</span></label>
-            <label class="filter-option"><input type="checkbox" value="三人称単数現在"><span>三人称単数現在</span></label>
-            <label class="filter-option"><input type="checkbox" value="現在進行形"><span>現在進行形</span></label>
-            <label class="filter-option"><input type="checkbox" value="There is / There are"><span>There is / There are</span></label>
-            <label class="filter-option"><input type="checkbox" value="命令文"><span>命令文</span></label>
-            <label class="filter-option"><input type="checkbox" value="疑問詞"><span>疑問詞</span></label>
-            <label class="filter-option"><input type="checkbox" value="過去形"><span>過去形</span></label>
-            <label class="filter-option"><input type="checkbox" value="過去進行形"><span>過去進行形</span></label>
-            <label class="filter-option"><input type="checkbox" value="未来表現"><span>未来表現</span></label>
-            <label class="filter-option"><input type="checkbox" value="接続詞"><span>接続詞</span></label>
-            <label class="filter-option"><input type="checkbox" value="比較級"><span>比較級</span></label>
-            <label class="filter-option"><input type="checkbox" value="最上級"><span>最上級</span></label>
-            <label class="filter-option"><input type="checkbox" value="受動態"><span>受動態</span></label>
-            <label class="filter-option"><input type="checkbox" value="現在完了形"><span>現在完了形</span></label>
-            <label class="filter-option"><input type="checkbox" value="関係代名詞（主格）"><span>関係代名詞（主格）</span></label>
-            <label class="filter-option"><input type="checkbox" value="間接疑問文"><span>間接疑問文</span></label>
-            <label class="filter-option"><input type="checkbox" value="仮定法"><span>仮定法</span></label>
-            <label class="filter-option"><input type="checkbox" value="現在完了進行形"><span>現在完了進行形</span></label>
-            <label class="filter-option"><input type="checkbox" value="関係代名詞（目的格）"><span>関係代名詞（目的格）</span></label>
-            <label class="filter-option"><input type="checkbox" value="関係代名詞（所有格）"><span>関係代名詞（所有格）</span></label>
-            <label class="filter-option"><input type="checkbox" value="仮定法（過去完了）"><span>仮定法（過去完了）</span></label>
-          </div>
-        </div>
-        <div class="filter-group" aria-label="難易度選択">
-          <p class="filter-group__title">難易度</p>
-          <div class="filter-group__options" id="level-filters">
-            <label class="filter-option"><input type="checkbox" value="1"><span>レベル1</span></label>
-            <label class="filter-option"><input type="checkbox" value="2"><span>レベル2</span></label>
-            <label class="filter-option"><input type="checkbox" value="3"><span>レベル3</span></label>
-          </div>
-        </div>
-        <div class="level-progress" id="level-progress">正解達成率: <strong>0%</strong></div>
-      </div>
-      <div class="home-actions">
-        <button class="button" id="start-set-btn" type="button">10問を始める</button>
-        <button class="button button--ghost" id="reset-stats-btn" type="button">記録をリセット</button>
-        <button class="button button--ghost" id="toggle-wrong-only-btn" type="button">間違い問題モード: OFF</button>
-        <button class="button button--ghost" id="toggle-progress-btn" type="button">達成状況表示</button>
-      </div>
-      <p class="home-status" id="home-status" role="status">準備OK！10問1セットに挑戦しよう。</p>
-      <section class="progress-panel" id="progress-panel" hidden>
-        <div class="progress-panel__header">
-          <h3>達成状況（正解率）</h3>
-          <p class="progress-panel__hint">各レベル×学年×文法項目ごとの正解率を表示します。</p>
-        </div>
-        <div class="progress-panel__tables" id="progress-tables"></div>
-      </section>
-      <section class="data-panel" aria-label="学習データの保存と引き継ぎ">
-        <div class="data-panel__header">
-          <h3>学習データの保存・引き継ぎ</h3>
-          <p class="data-panel__hint">この端末の学習記録を保存したり、別端末から読み込めます。</p>
-        </div>
-        <div class="data-panel__actions">
-          <button class="button button--ghost" id="export-stats-btn" type="button">学習データを保存</button>
-          <label class="button button--ghost" for="import-stats-input">学習データを読み込む</label>
-          <input id="import-stats-input" type="file" accept="application/json" hidden>
-        </div>
-        <p class="data-panel__note">JSONファイルとして保存されます。</p>
-      </section>
-    </section>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-    <section class="card" aria-labelledby="lesson-title" id="quiz-screen" hidden>
-      <div class="card__header">
-        <div></div>
-      </div>
+body {
+  background: #f9fafb;
+  color: var(--text);
+  line-height: 1.6;
+}
 
-      <div class="prompt">
-        <span class="prompt__label">問題</span>
-        <p class="prompt__text" id="japanese-hint">わたしは毎日バスで学校に行きます。</p>
-      </div>
+.hero {
+  background: linear-gradient(120deg, #eef2ff 0%, #fef3c7 100%);
+  padding: 3.5rem 1.5rem;
+}
 
-      <div class="prompt prompt--answer" id="answer-example" hidden>
-        <span class="prompt__label">正解例</span>
-        <div class="slots slots--answer" id="answer-slots" aria-label="正解例スロット"></div>
-      </div>
+.hero__content {
+  max-width: 960px;
+  margin: 0 auto;
+}
 
-      <div class="answer-area" aria-live="polite">
-        <h3>解答</h3>
-        <p class="answer-area__guide">単語を正しい場所に置こう。</p>
-        <div class="slots" id="slots" aria-label="空欄スロット"></div>
-        <div class="answer-actions">
-          <button class="button" id="check-btn" type="button">答え合わせ</button>
-          <button class="button button--ghost" id="reset-btn" type="button">リセット</button>
-          <button class="button button--ghost" id="next-btn" type="button" hidden>次の問題へ</button>
-        </div>
-        <p class="feedback" id="feedback" role="status"></p>
-      </div>
+.hero__tag {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background: #fff;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 1rem;
+}
 
-      <div class="word-bank" aria-label="単語ピース">
-        <h3>単語ピース</h3>
-        <div class="word-bank__list" id="word-bank"></div>
-      </div>
+.hero h1 {
+  font-size: clamp(2rem, 4vw, 3rem);
+  margin-bottom: 0.75rem;
+}
 
-      <div class="progress" aria-label="進み具合">
-        <span id="progress-text">1 / 4 問目</span>
-        <div class="progress__bar">
-          <div class="progress__value" id="progress-value"></div>
-        </div>
-      </div>
+.hero__lead {
+  max-width: 640px;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
 
-      <div class="set-summary" id="set-summary" hidden>
-        <h3>10問セットの結果</h3>
-        <p class="set-summary__score" id="set-score"></p>
-        <p class="set-summary__message" id="set-message"></p>
-        <button class="button" id="set-next-btn" type="button">次の10問</button>
-      </div>
+.container {
+  max-width: 1280px;
+  margin: -2rem auto 3rem;
+  padding: 0 1.5rem;
+  display: grid;
+  gap: 2rem;
+}
 
-      <div class="quiz-footer">
-        <button class="button button--ghost" id="home-btn" type="button">ホームへ戻る</button>
-      </div>
+.home {
+  background: #ffffff;
+}
 
-    </section>
+.level-select {
+  margin-top: 1rem;
+}
 
-  </main>
+.level-select__label {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
 
-  <footer class="footer">
-    <p>© 2025 English Sentence Puzzle. 英語の語順を楽しく学ぼう。</p>
-  </footer>
+.filter-group {
+  margin-top: 1rem;
+}
 
-  <div class="confetti" id="confetti" aria-hidden="true"></div>
+.filter-group__title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
 
-  <script src="app.js"></script>
-</body>
-</html>
+.filter-group__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.filter-option input {
+  accent-color: var(--primary);
+}
+
+.home-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.home-actions .button {
+  white-space: nowrap;
+}
+
+.level-progress {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.level-progress strong {
+  color: var(--text);
+}
+
+.home-status {
+  margin-top: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.progress-panel {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.progress-panel__header h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.progress-panel__hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.progress-panel__tables {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.progress-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.progress-table caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.progress-table th,
+.progress-table td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+}
+
+.progress-table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.progress-table td:first-child,
+.progress-table th:first-child {
+  text-align: left;
+}
+
+.data-panel {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.data-panel__header h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.data-panel__hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.data-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.data-panel__note {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.set-summary {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #f1f5ff;
+}
+
+.set-summary__score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-top: 0.5rem;
+}
+
+.set-summary__message {
+  color: var(--muted);
+  margin: 0.5rem 0 1rem;
+}
+
+.quiz-footer {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
+}
+
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.card__subtitle {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.button {
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.button:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid rgba(58, 91, 253, 0.3);
+}
+
+.button--ghost:hover {
+  background: rgba(58, 91, 253, 0.1);
+}
+
+.prompt {
+  background: var(--secondary);
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.prompt--answer {
+  border: 1px solid rgba(58, 91, 253, 0.2);
+  background: #ffffff;
+}
+
+.slots--answer {
+  margin-top: 0.75rem;
+}
+
+.slots--answer .slot {
+  background: #f8fafc;
+}
+
+.prompt__label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--primary-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.prompt__text {
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+}
+
+.answer-area {
+  border: 1px dashed var(--border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.answer-area__guide {
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.slots {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.slot-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.slot-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+}
+
+.slot {
+  min-height: 84px;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: #fff;
+  border: 2px dashed var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.slot--active {
+  border-color: var(--primary);
+  background: #eef2ff;
+}
+
+.word-bank {
+  background: #f8fafc;
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.word-bank__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.word-bank__list--active {
+  outline: 2px dashed var(--primary);
+  outline-offset: 6px;
+  border-radius: 1rem;
+}
+
+.word {
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.word--chip {
+  cursor: grab;
+  border-color: rgba(58, 91, 253, 0.3);
+}
+
+.word:hover {
+  transform: translateY(-1px);
+  background: #f0f4ff;
+}
+
+.word.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.answer-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.feedback {
+  margin-top: 1rem;
+  font-weight: 600;
+}
+
+.feedback.success {
+  color: #16a34a;
+}
+
+.feedback.error {
+  color: #dc2626;
+}
+
+.progress {
+  margin-top: 2rem;
+}
+
+.progress__bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.progress__value {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #3a5bfd, #9b6dff);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.tips {
+  background: #fff7ed;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  border: 1px solid #fed7aa;
+}
+
+.tips ul {
+  margin-top: 1rem;
+  padding-left: 1.25rem;
+  color: var(--muted);
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem 1.5rem 3rem;
+  color: var(--muted);
+}
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: var(--size, 8px);
+  height: calc(var(--size, 8px) * 1.4);
+  background: hsl(var(--hue, 200) 90% 60%);
+  top: -10vh;
+  left: var(--x, 50%);
+  opacity: 0;
+  transform: rotate(var(--rotate, 0deg));
+  animation: confetti-fall var(--duration, 1.4s) ease-out var(--delay, 0s) forwards;
+}
+
+.confetti--grand .confetti-piece {
+  animation-duration: 1.9s;
+}
+
+@keyframes confetti-fall {
+  0% {
+    opacity: 0;
+    transform: translateY(0) rotate(var(--rotate, 0deg));
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(110vh) rotate(calc(var(--rotate, 0deg) + 200deg));
+  }
+}
+
+@media (max-width: 720px) {
+  .card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .answer-actions {
+    flex-direction: column;
+  }
+}
