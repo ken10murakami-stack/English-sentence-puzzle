@@ -190,6 +190,37 @@ body {
   text-align: left;
 }
 
+.data-panel {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.data-panel__header h3 {
+  font-size: 1.1rem;
+  margin-bottom: 0.25rem;
+}
+
+.data-panel__hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.data-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.data-panel__note {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .set-summary {
   margin-top: 2rem;
   padding: 1.5rem;
