@@ -49,6 +49,8 @@ const setNextBtn = document.getElementById("set-next-btn");
 const toggleProgressBtn = document.getElementById("toggle-progress-btn");
 const progressPanel = document.getElementById("progress-panel");
 const progressTables = document.getElementById("progress-tables");
+const exportStatsBtn = document.getElementById("export-stats-btn");
+const importStatsInput = document.getElementById("import-stats-input");
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1A4oxIkzDYQ2sAhdLCATzU2Yi7-jflm01kkxhIjmuLo4/edit?gid=863237441#gid=863237441";
 
@@ -855,6 +857,51 @@ const triggerConfetti = (mode) => {
   }, mode === "grand" ? 2400 : 1600);
 };
 
+const exportStats = () => {
+  const stats = loadStats();
+  const payload = JSON.stringify(stats, null, 2);
+  const blob = new Blob([payload], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "english-sentence-puzzle-stats.json";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  homeStatus.textContent = "学習データを保存しました。";
+};
+
+const importStats = (file) => {
+  if (!file) {
+    return;
+  }
+  if (file.type && file.type !== "application/json") {
+    homeStatus.textContent = "JSON形式の学習データを選択してください。";
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (parsed && typeof parsed === "object") {
+        saveStats(parsed);
+        homeStatus.textContent = "学習データを読み込みました。";
+        updateHomeStatus();
+        updateLevelProgress();
+        if (!progressPanel.hidden) {
+          renderProgressTables();
+        }
+      } else {
+        homeStatus.textContent = "学習データの形式が正しくありません。";
+      }
+    } catch (error) {
+      homeStatus.textContent = "学習データの読み込みに失敗しました。";
+    }
+  };
+  reader.readAsText(file);
+};
+
 resetBtn.addEventListener("click", resetAnswer);
 checkBtn.addEventListener("click", checkAnswer);
 nextBtn.addEventListener("click", advanceLesson);
@@ -862,6 +909,12 @@ startSetBtn.addEventListener("click", startSet);
 setNextBtn.addEventListener("click", startSet);
 homeBtn.addEventListener("click", returnHome);
 resetStatsBtn.addEventListener("click", resetStats);
+exportStatsBtn.addEventListener("click", exportStats);
+importStatsInput.addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  importStats(file);
+  importStatsInput.value = "";
+});
 toggleWrongOnlyBtn.addEventListener("click", () => {
   wrongOnlyMode = !wrongOnlyMode;
   toggleWrongOnlyBtn.textContent = wrongOnlyMode ? "間違い問題モード: ON" : "間違い問題モード: OFF";
