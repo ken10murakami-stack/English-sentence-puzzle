@@ -654,6 +654,8 @@ const loadLesson = () => {
   answerExample.hidden = true;
   answerSlots.innerHTML = "";
   nextBtn.hidden = true;
+  checkBtn.disabled = false;
+  resetBtn.disabled = false;
   setSummary.hidden = true;
   updateProgress();
 };
@@ -700,6 +702,8 @@ const resetAnswer = () => {
   answerExample.hidden = true;
   answerSlots.innerHTML = "";
   nextBtn.hidden = true;
+  checkBtn.disabled = false;
+  resetBtn.disabled = false;
 };
 
 const advanceLesson = () => {
@@ -822,6 +826,8 @@ const checkAnswer = () => {
     renderAnswerSlots(lesson);
     answerExample.hidden = false;
     nextBtn.hidden = false;
+    checkBtn.disabled = true;
+    resetBtn.disabled = true;
   }
   updateHomeStatus();
   if (!progressPanel.hidden) {
