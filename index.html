@@ -107,7 +107,7 @@
 
       <div class="prompt prompt--answer" id="answer-example" hidden>
         <span class="prompt__label">正解例</span>
-        <div class="slots slots--answer" id="answer-slots" aria-label="正解例スロット"></div>
+        <div class="slots slots--answer" id="answer-slots" aria-label="正解例スット"></div>
       </div>
 
       <div class="answer-area" aria-live="polite">
@@ -125,6 +125,15 @@
       <div class="word-bank" aria-label="単語ピース">
         <h3>単語ピース</h3>
         <div class="word-bank__list" id="word-bank"></div>
+      </div>
+      <div class="word-hint" aria-live="polite">
+        <button class="button button--ghost" id="toggle-word-hints-btn" type="button">
+          単語のヒントを表示
+        </button>
+        <div class="word-hint__panel" id="word-hint-panel" hidden>
+          <ul class="word-hint__list" id="word-hint-list"></ul>
+          <p class="word-hint__note">※意味データがない単語は「—」と表示されます。</p>
+        </div>
       </div>
 
       <div class="progress" aria-label="進み具合">
