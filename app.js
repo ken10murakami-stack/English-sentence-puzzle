@@ -10,6 +10,7 @@ let selectedGrades = new Set(gradeOptions);
 let selectedGrammar = new Set();
 let selectedLevels = new Set([1, 2, 3]);
 let wrongOnlyMode = false;
+let hintUsedForLesson = false;
 const slotLabels = [
   "⓪疑問文のとき",
   "①だれは/何は",
@@ -51,8 +52,12 @@ const progressPanel = document.getElementById("progress-panel");
 const progressTables = document.getElementById("progress-tables");
 const exportStatsBtn = document.getElementById("export-stats-btn");
 const importStatsInput = document.getElementById("import-stats-input");
+const toggleWordHintsBtn = document.getElementById("toggle-word-hints-btn");
+const wordHintPanel = document.getElementById("word-hint-panel");
+const wordHintList = document.getElementById("word-hint-list");
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1A4oxIkzDYQ2sAhdLCATzU2Yi7-jflm01kkxhIjmuLo4/edit?gid=863237441#gid=863237441";
+const DEFAULT_WORD_MEANINGS = {};
 
 const shuffleArray = (array) => {
   const copy = [...array];
@@ -62,6 +67,8 @@ const shuffleArray = (array) => {
   }
   return copy;
 };
+
+const normalizeWord = (word) => word.toLowerCase();
 
 const normalizeLessonId = (lesson) =>
   `${lesson.japanese}__${lesson.words.join(" ")}`.replace(/\s+/g, "_");
@@ -232,6 +239,23 @@ const parseCsv = (text) =>
     .filter((line) => line.trim().length > 0)
     .map(parseCsvRow);
 
+const parseMeaningCell = (cell) => {
+  if (!cell) {
+    return {};
+  }
+  return cell
+    .split(/[\n;,|]+/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((accumulator, entry) => {
+      const [word, meaning] = entry.split(/[:=]/).map((value) => value?.trim());
+      if (word && meaning) {
+        accumulator[normalizeWord(word)] = meaning;
+      }
+      return accumulator;
+    }, {});
+};
+
 const buildLessonSlots = (row, slotIndices) => {
   const indices = slotIndices ?? [2, 3, 4, 5, 6];
   const slotValues = indices.map((index) => (row[index] ?? "").trim());
@@ -265,6 +289,10 @@ const buildHeaderMap = (headerRow) => {
   const normalized = headerRow.map((cell) => cell.trim());
   const findIndex = (label) => normalized.findIndex((cell) => cell === label);
   const slotIndices = slotLabels.map((label) => findIndex(label));
+  const meaningCandidates = ["単語意味", "単語の意味", "Word Meaning", "Meaning"];
+  const meaningIdx = meaningCandidates
+    .map((label) => findIndex(label))
+    .find((index) => index >= 0);
   const required = [
     "ID",
     "学年",
@@ -281,6 +309,7 @@ const buildHeaderMap = (headerRow) => {
       gradeIdx: findIndex("学年"),
       grammarIdx: findIndex("文法項目"),
       levelIdx: findIndex("難易度"),
+      meaningIdx,
       slotIndices,
       hasHeader: true,
     };
@@ -295,6 +324,7 @@ const buildLessonFromRow = (row, headerMap) => {
   const english = (row[englishIdx] ?? "").trim();
   const words = english.length > 0 ? english.split(" ") : slots.flat().filter(Boolean);
   const level = parseLevelValue(row[headerMap.levelIdx ?? 7] ?? "1");
+  const meanings = parseMeaningCell(row[headerMap.meaningIdx ?? -1] ?? "");
   return {
     id: (row[headerMap.idIdx ?? -1] ?? "").trim() || undefined,
     grade: (row[headerMap.gradeIdx ?? -1] ?? "").trim(),
@@ -302,6 +332,7 @@ const buildLessonFromRow = (row, headerMap) => {
     japanese: (row[japaneseIdx] ?? "").trim(),
     words,
     slots,
+    meanings,
     level,
   };
 };
@@ -648,6 +679,9 @@ const currentLesson = () => lessons[currentSet[setIndex]];
 const loadLesson = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
+  hintUsedForLesson = false;
+  wordHintPanel.hidden = true;
+  toggleWordHintsBtn.textContent = "単語のヒントを表示";
   japaneseHint.textContent = lesson.japanese;
   renderSlots();
   renderWordBank(shuffleArray(lesson.words));
@@ -659,6 +693,7 @@ const loadLesson = () => {
   checkBtn.disabled = false;
   resetBtn.disabled = false;
   setSummary.hidden = true;
+  renderWordHints(lesson);
   updateProgress();
 };
 
@@ -717,7 +752,25 @@ const advanceLesson = () => {
   loadLesson();
 };
 
-const normalizeWord = (word) => word.toLowerCase();
+const getWordMeaning = (lesson, word) =>
+  lesson?.meanings?.[normalizeWord(word)] ?? DEFAULT_WORD_MEANINGS[normalizeWord(word)] ?? "—";
+
+const renderWordHints = (lesson) => {
+  wordHintList.innerHTML = "";
+  const words = Array.from(new Set(lesson.words));
+  words.forEach((word) => {
+    const item = document.createElement("li");
+    const wordSpan = document.createElement("span");
+    wordSpan.className = "word-hint__word";
+    wordSpan.textContent = word;
+    const meaningSpan = document.createElement("span");
+    meaningSpan.className = "word-hint__meaning";
+    meaningSpan.textContent = getWordMeaning(lesson, word);
+    item.appendChild(wordSpan);
+    item.appendChild(meaningSpan);
+    wordHintList.appendChild(item);
+  });
+};
 
 const areSlotWordsEqual = (currentSlots, expectedSlots) =>
   expectedSlots.every((expectedWords, index) => {
@@ -759,6 +812,8 @@ const returnHome = () => {
   quizScreen.hidden = true;
   homeScreen.hidden = false;
   setSummary.hidden = true;
+  wordHintPanel.hidden = true;
+  toggleWordHintsBtn.textContent = "単語のヒントを表示";
   updateHomeStatus();
   updateLevelProgress();
 };
@@ -814,7 +869,9 @@ const checkAnswer = () => {
     lesson.words.every(
       (word, index) => normalizeWord(word) === normalizeWord(arrangedWords[index])
     );
-  updateLessonStats(lesson.id, isCorrect);
+  if (!hintUsedForLesson || !isCorrect) {
+    updateLessonStats(lesson.id, isCorrect);
+  }
   if (isCorrect) {
     feedback.textContent = "正解！次の問題に進みます。";
     feedback.className = "feedback success";
@@ -920,6 +977,15 @@ toggleWrongOnlyBtn.addEventListener("click", () => {
   toggleWrongOnlyBtn.textContent = wrongOnlyMode ? "間違い問題モード: ON" : "間違い問題モード: OFF";
   updateHomeStatus();
   updateLevelProgress();
+});
+toggleWordHintsBtn.addEventListener("click", () => {
+  wordHintPanel.hidden = !wordHintPanel.hidden;
+  toggleWordHintsBtn.textContent = wordHintPanel.hidden
+    ? "単語のヒントを表示"
+    : "単語のヒントを隠す";
+  if (!wordHintPanel.hidden) {
+    hintUsedForLesson = true;
+  }
 });
 toggleProgressBtn.addEventListener("click", () => {
   progressPanel.hidden = !progressPanel.hidden;
