@@ -391,6 +391,48 @@ body {
   border-radius: 1rem;
 }
 
+.word-hint {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.word-hint__panel {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+
+.word-hint__list {
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.word-hint__list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-weight: 600;
+}
+
+.word-hint__word {
+  color: var(--primary-dark);
+}
+
+.word-hint__meaning {
+  color: var(--muted);
+  text-align: right;
+}
+
+.word-hint__note {
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .word {
   padding: 0.6rem 1rem;
   border-radius: 999px;
