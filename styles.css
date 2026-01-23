@@ -405,26 +405,10 @@ body {
   background: #fff;
 }
 
-.word-hint__list {
-  list-style: none;
-  display: grid;
-  gap: 0.5rem;
-}
-
-.word-hint__list li {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
+.word-hint__text {
   font-weight: 600;
-}
-
-.word-hint__word {
-  color: var(--primary-dark);
-}
-
-.word-hint__meaning {
-  color: var(--muted);
-  text-align: right;
+  color: var(--text);
+  white-space: pre-wrap;
 }
 
 .word-hint__note {
