@@ -54,10 +54,10 @@ const exportStatsBtn = document.getElementById("export-stats-btn");
 const importStatsInput = document.getElementById("import-stats-input");
 const toggleWordHintsBtn = document.getElementById("toggle-word-hints-btn");
 const wordHintPanel = document.getElementById("word-hint-panel");
-const wordHintList = document.getElementById("word-hint-list");
+const wordHintText = document.getElementById("word-hint-text");
 const DEFAULT_SHEET_URL =
   "https://docs.google.com/spreadsheets/d/1A4oxIkzDYQ2sAhdLCATzU2Yi7-jflm01kkxhIjmuLo4/edit?gid=863237441#gid=863237441";
-const DEFAULT_WORD_MEANINGS = {};
+const DEFAULT_HINT_TEXT = "";
 
 const shuffleArray = (array) => {
   const copy = [...array];
@@ -208,53 +208,49 @@ const renderLevelFilters = () => {
   });
 };
 
-const parseCsvRow = (row) => {
-  const result = [];
+const parseCsv = (text) => {
+  const rows = [];
+  let row = [];
   let current = "";
   let inQuotes = false;
-  for (let i = 0; i < row.length; i += 1) {
-    const char = row[i];
+  const commitCell = () => {
+    row.push(current.trim());
+    current = "";
+  };
+  const commitRow = () => {
+    if (row.length > 0 || current.trim().length > 0) {
+      commitCell();
+      rows.push(row);
+    }
+    row = [];
+  };
+  for (let i = 0; i < text.length; i += 1) {
+    const char = text[i];
     if (char === "\"") {
-      if (inQuotes && row[i + 1] === "\"") {
+      if (inQuotes && text[i + 1] === "\"") {
         current += "\"";
         i += 1;
       } else {
         inQuotes = !inQuotes;
       }
     } else if (char === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
+      commitCell();
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && text[i + 1] === "\n") {
+        i += 1;
+      }
+      commitRow();
     } else {
       current += char;
     }
   }
-  result.push(current.trim());
-  return result;
-};
-
-const parseCsv = (text) =>
-  text
-    .trim()
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0)
-    .map(parseCsvRow);
-
-const parseMeaningCell = (cell) => {
-  if (!cell) {
-    return {};
+  if (current.length > 0 || row.length > 0) {
+    commitRow();
   }
-  return cell
-    .split(/[\n;,|]+/)
-    .map((entry) => entry.trim())
-    .filter(Boolean)
-    .reduce((accumulator, entry) => {
-      const [word, meaning] = entry.split(/[:=]/).map((value) => value?.trim());
-      if (word && meaning) {
-        accumulator[normalizeWord(word)] = meaning;
-      }
-      return accumulator;
-    }, {});
+  return rows.filter((line) => line.some((cell) => cell.trim().length > 0));
 };
+
+const parseHintCell = (cell) => (cell ?? "").trim();
 
 const buildLessonSlots = (row, slotIndices) => {
   const indices = slotIndices ?? [2, 3, 4, 5, 6];
@@ -289,8 +285,8 @@ const buildHeaderMap = (headerRow) => {
   const normalized = headerRow.map((cell) => cell.trim());
   const findIndex = (label) => normalized.findIndex((cell) => cell === label);
   const slotIndices = slotLabels.map((label) => findIndex(label));
-  const meaningCandidates = ["単語意味", "単語の意味", "Word Meaning", "Meaning"];
-  const meaningIdx = meaningCandidates
+  const hintCandidates = ["ヒント", "説明", "単語意味", "単語の意味", "Word Meaning", "Meaning"];
+  const hintIdx = hintCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
   const required = [
@@ -309,7 +305,7 @@ const buildHeaderMap = (headerRow) => {
       gradeIdx: findIndex("学年"),
       grammarIdx: findIndex("文法項目"),
       levelIdx: findIndex("難易度"),
-      meaningIdx,
+      hintIdx,
       slotIndices,
       hasHeader: true,
     };
@@ -324,7 +320,7 @@ const buildLessonFromRow = (row, headerMap) => {
   const english = (row[englishIdx] ?? "").trim();
   const words = english.length > 0 ? english.split(" ") : slots.flat().filter(Boolean);
   const level = parseLevelValue(row[headerMap.levelIdx ?? 7] ?? "1");
-  const meanings = parseMeaningCell(row[headerMap.meaningIdx ?? -1] ?? "");
+  const hintText = parseHintCell(row[headerMap.hintIdx ?? -1] ?? "");
   return {
     id: (row[headerMap.idIdx ?? -1] ?? "").trim() || undefined,
     grade: (row[headerMap.gradeIdx ?? -1] ?? "").trim(),
@@ -332,7 +328,7 @@ const buildLessonFromRow = (row, headerMap) => {
     japanese: (row[japaneseIdx] ?? "").trim(),
     words,
     slots,
-    meanings,
+    hintText,
     level,
   };
 };
@@ -681,7 +677,7 @@ const loadLesson = () => {
   slotWords = Array.from({ length: slotLabels.length }, () => []);
   hintUsedForLesson = false;
   wordHintPanel.hidden = true;
-  toggleWordHintsBtn.textContent = "単語のヒントを表示";
+  toggleWordHintsBtn.textContent = "ヒントを表示";
   japaneseHint.textContent = lesson.japanese;
   renderSlots();
   renderWordBank(shuffleArray(lesson.words));
@@ -752,24 +748,9 @@ const advanceLesson = () => {
   loadLesson();
 };
 
-const getWordMeaning = (lesson, word) =>
-  lesson?.meanings?.[normalizeWord(word)] ?? DEFAULT_WORD_MEANINGS[normalizeWord(word)] ?? "—";
-
 const renderWordHints = (lesson) => {
-  wordHintList.innerHTML = "";
-  const words = Array.from(new Set(lesson.words));
-  words.forEach((word) => {
-    const item = document.createElement("li");
-    const wordSpan = document.createElement("span");
-    wordSpan.className = "word-hint__word";
-    wordSpan.textContent = word;
-    const meaningSpan = document.createElement("span");
-    meaningSpan.className = "word-hint__meaning";
-    meaningSpan.textContent = getWordMeaning(lesson, word);
-    item.appendChild(wordSpan);
-    item.appendChild(meaningSpan);
-    wordHintList.appendChild(item);
-  });
+  const text = lesson.hintText || DEFAULT_HINT_TEXT || "ヒントがありません。";
+  wordHintText.textContent = text;
 };
 
 const areSlotWordsEqual = (currentSlots, expectedSlots) =>
@@ -813,7 +794,7 @@ const returnHome = () => {
   homeScreen.hidden = false;
   setSummary.hidden = true;
   wordHintPanel.hidden = true;
-  toggleWordHintsBtn.textContent = "単語のヒントを表示";
+  toggleWordHintsBtn.textContent = "ヒントを表示";
   updateHomeStatus();
   updateLevelProgress();
 };
@@ -981,8 +962,8 @@ toggleWrongOnlyBtn.addEventListener("click", () => {
 toggleWordHintsBtn.addEventListener("click", () => {
   wordHintPanel.hidden = !wordHintPanel.hidden;
   toggleWordHintsBtn.textContent = wordHintPanel.hidden
-    ? "単語のヒントを表示"
-    : "単語のヒントを隠す";
+    ? "ヒントを表示"
+    : "ヒントを隠す";
   if (!wordHintPanel.hidden) {
     hintUsedForLesson = true;
   }
