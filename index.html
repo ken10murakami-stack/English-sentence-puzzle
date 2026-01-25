@@ -93,6 +93,19 @@
         </div>
         <p class="data-panel__note">JSONファイルとして保存されます。</p>
       </section>
+      <section class="reset-panel" aria-label="文法項目別の記録リセット">
+        <div class="reset-panel__header">
+          <h3>文法項目ごとに記録をリセット</h3>
+          <p class="reset-panel__hint">選んだ文法項目の学習記録だけを削除します。</p>
+        </div>
+        <div class="reset-panel__actions">
+          <select class="reset-panel__select" id="reset-grammar-select" aria-label="文法項目を選択">
+            <option value="">文法項目を選択</option>
+          </select>
+          <button class="button button--ghost" id="reset-grammar-btn" type="button">この文法項目をリセット</button>
+        </div>
+        <p class="reset-panel__note">この操作は取り消せません。</p>
+      </section>
     </section>
 
     <section class="card" aria-labelledby="lesson-title" id="quiz-screen" hidden>
