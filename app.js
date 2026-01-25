@@ -52,6 +52,8 @@ const progressPanel = document.getElementById("progress-panel");
 const progressTables = document.getElementById("progress-tables");
 const exportStatsBtn = document.getElementById("export-stats-btn");
 const importStatsInput = document.getElementById("import-stats-input");
+const resetGrammarSelect = document.getElementById("reset-grammar-select");
+const resetGrammarBtn = document.getElementById("reset-grammar-btn");
 const toggleWordHintsBtn = document.getElementById("toggle-word-hints-btn");
 const wordHintPanel = document.getElementById("word-hint-panel");
 const wordHintText = document.getElementById("word-hint-text");
@@ -104,6 +106,30 @@ const clearStats = () => {
 
 const getLessonStats = (stats, lessonId) =>
   stats[lessonId] ?? { correct: 0, wrong: 0, attempts: 0 };
+
+const clearStatsForGrammar = (grammar) => {
+  if (!grammar) {
+    return false;
+  }
+  const stats = loadStats();
+  const lessonIds = lessons
+    .filter((lesson) => lesson.grammar === grammar)
+    .map((lesson) => lesson.id);
+  if (lessonIds.length === 0) {
+    return false;
+  }
+  let changed = false;
+  lessonIds.forEach((id) => {
+    if (stats[id]) {
+      delete stats[id];
+      changed = true;
+    }
+  });
+  if (changed) {
+    saveStats(stats);
+  }
+  return changed;
+};
 
 const isWrongOnlyEligible = (stats, lesson) => getLessonStats(stats, lesson.id).wrong > 0;
 
@@ -185,6 +211,31 @@ const renderGrammarFilters = () => {
   });
 };
 
+const renderResetGrammarOptions = () => {
+  if (!resetGrammarSelect) {
+    return;
+  }
+  const grammarOptions = Array.from(
+    new Set(lessons.map((lesson) => lesson.grammar).filter(Boolean))
+  );
+  resetGrammarSelect.innerHTML = "";
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "文法項目を選択";
+  resetGrammarSelect.appendChild(placeholder);
+  grammarOptions.forEach((grammar) => {
+    const option = document.createElement("option");
+    option.value = grammar;
+    option.textContent = grammar;
+    resetGrammarSelect.appendChild(option);
+  });
+  const hasOptions = grammarOptions.length > 0;
+  resetGrammarSelect.disabled = !hasOptions;
+  if (resetGrammarBtn) {
+    resetGrammarBtn.disabled = !hasOptions;
+  }
+};
+
 const renderLevelFilters = () => {
   levelFilters.innerHTML = "";
   [1, 2, 3].forEach((level) => {
@@ -252,6 +303,12 @@ const parseCsv = (text) => {
 
 const parseHintCell = (cell) => (cell ?? "").trim();
 
+const parseDummyWords = (cell) =>
+  (cell ?? "")
+    .split(/[\s,;|]+/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+
 const buildLessonSlots = (row, slotIndices) => {
   const indices = slotIndices ?? [2, 3, 4, 5, 6];
   const slotValues = indices.map((index) => (row[index] ?? "").trim());
@@ -289,6 +346,11 @@ const buildHeaderMap = (headerRow) => {
   const hintIdx = hintCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
+  const dummyCandidates = ["ダミー単語", "ダミー", "Dummy Words", "Dummy"];
+  const dummyIdx = dummyCandidates
+    .map((label) => findIndex(label))
+    .find((index) => index >= 0);
+  const fallbackDummyIdx = normalized.length > 12 ? 12 : -1;
   const required = [
     "ID",
     "学年",
@@ -306,6 +368,7 @@ const buildHeaderMap = (headerRow) => {
       grammarIdx: findIndex("文法項目"),
       levelIdx: findIndex("難易度"),
       hintIdx,
+      dummyIdx: dummyIdx ?? fallbackDummyIdx,
       slotIndices,
       hasHeader: true,
     };
@@ -321,6 +384,8 @@ const buildLessonFromRow = (row, headerMap) => {
   const words = english.length > 0 ? english.split(" ") : slots.flat().filter(Boolean);
   const level = parseLevelValue(row[headerMap.levelIdx ?? 7] ?? "1");
   const hintText = parseHintCell(row[headerMap.hintIdx ?? -1] ?? "");
+  const dummyIndex = headerMap.dummyIdx ?? -1;
+  const dummyWords = parseDummyWords(dummyIndex >= 0 ? row[dummyIndex] : "");
   return {
     id: (row[headerMap.idIdx ?? -1] ?? "").trim() || undefined,
     grade: (row[headerMap.gradeIdx ?? -1] ?? "").trim(),
@@ -329,6 +394,7 @@ const buildLessonFromRow = (row, headerMap) => {
     words,
     slots,
     hintText,
+    dummyWords,
     level,
   };
 };
@@ -445,7 +511,7 @@ const renderSlots = () => {
           }
         }
         renderSlots();
-        renderWordBank(shuffleArray(currentLesson().words));
+        renderWordBank(shuffleArray(getWordBankWords(currentLesson())));
       },
     });
     slots.appendChild(slotCard);
@@ -565,7 +631,7 @@ const updateLevelProgress = () => {
   const rate = total === 0 ? 0 : Math.round((correct / total) * 100);
   levelProgress.innerHTML =
     total === 0
-      ? "このレベルには問題がありません。"
+      ? "のレベルには問題がありません。"
       : `正解達成率: <strong>${rate}%</strong>`;
 };
 
@@ -672,6 +738,11 @@ const updateProgress = () => {
 
 const currentLesson = () => lessons[currentSet[setIndex]];
 
+const getWordBankWords = (lesson) =>
+  lesson.dummyWords && lesson.dummyWords.length > 0
+    ? [...lesson.words, ...lesson.dummyWords]
+    : lesson.words;
+
 const loadLesson = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
@@ -680,7 +751,7 @@ const loadLesson = () => {
   toggleWordHintsBtn.textContent = "ヒントを表示";
   japaneseHint.textContent = lesson.japanese;
   renderSlots();
-  renderWordBank(shuffleArray(lesson.words));
+  renderWordBank(shuffleArray(getWordBankWords(lesson)));
   feedback.textContent = "";
   feedback.className = "feedback";
   answerExample.hidden = true;
@@ -711,14 +782,14 @@ wordBank.addEventListener("drop", (event) => {
   if (source === "slot" && Number.isFinite(sourceIndex) && Number.isFinite(wordIndex)) {
     slotWords[sourceIndex].splice(wordIndex, 1);
     renderSlots();
-    renderWordBank(shuffleArray(currentLesson().words));
+    renderWordBank(shuffleArray(getWordBankWords(currentLesson())));
   }
 });
 
 const addWord = (word) => {
   const lesson = currentLesson();
   const selectedCount = countOccurrences(slotWords.flat())[word] ?? 0;
-  const totalCount = lesson.words.filter((item) => item === word).length;
+  const totalCount = getWordBankWords(lesson).filter((item) => item === word).length;
   if (selectedCount >= totalCount) {
     return false;
   }
@@ -729,7 +800,7 @@ const resetAnswer = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
   renderSlots();
-  renderWordBank(shuffleArray(lesson.words));
+  renderWordBank(shuffleArray(getWordBankWords(lesson)));
   feedback.textContent = "";
   feedback.className = "feedback";
   answerExample.hidden = true;
@@ -781,6 +852,7 @@ const applyLessons = (newLessons) => {
   homeScreen.hidden = false;
   renderGrammarFilters();
   renderGradeFilters();
+  renderResetGrammarOptions();
   renderLevelFilters();
   updateHomeStatus();
   updateLevelProgress();
@@ -865,6 +937,9 @@ const checkAnswer = () => {
     feedback.className = "feedback error";
     renderAnswerSlots(lesson);
     answerExample.hidden = false;
+    wordHintPanel.hidden = false;
+    toggleWordHintsBtn.textContent = "ヒントを隠す";
+    hintUsedForLesson = true;
     nextBtn.hidden = false;
     checkBtn.disabled = true;
     resetBtn.disabled = true;
@@ -953,6 +1028,28 @@ importStatsInput.addEventListener("change", (event) => {
   importStats(file);
   importStatsInput.value = "";
 });
+if (resetGrammarBtn && resetGrammarSelect) {
+  resetGrammarBtn.addEventListener("click", () => {
+    const grammar = resetGrammarSelect.value;
+    if (!grammar) {
+      homeStatus.textContent = "リセットする文法項目を選択してください。";
+      return;
+    }
+    const message = `「${grammar}」の学習記録をリセットします。よろしいですか？`;
+    if (!window.confirm(message)) {
+      return;
+    }
+    const changed = clearStatsForGrammar(grammar);
+    homeStatus.textContent = changed
+      ? `「${grammar}」の学習記録をリセットしました。`
+      : "リセット対象の記録がありません。";
+    updateHomeStatus();
+    updateLevelProgress();
+    if (!progressPanel.hidden) {
+      renderProgressTables();
+    }
+  });
+}
 toggleWrongOnlyBtn.addEventListener("click", () => {
   wrongOnlyMode = !wrongOnlyMode;
   toggleWrongOnlyBtn.textContent = wrongOnlyMode ? "間違い問題モード: ON" : "間違い問題モード: OFF";
@@ -977,6 +1074,7 @@ toggleProgressBtn.addEventListener("click", () => {
 
 renderGradeFilters();
 renderGrammarFilters();
+renderResetGrammarOptions();
 renderLevelFilters();
 updateHomeStatus();
 updateLevelProgress();
