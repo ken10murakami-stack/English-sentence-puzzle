@@ -9,7 +9,6 @@ let gradeOptions = ["中1", "中2", "中3"];
 let selectedGrades = new Set(gradeOptions);
 let selectedGrammar = new Set();
 let selectedLevels = new Set([1, 2, 3]);
-let wrongOnlyMode = false;
 let hintUsedForLesson = false;
 const slotLabels = [
   "⓪疑問文のとき",
@@ -40,7 +39,6 @@ const grammarFilters = document.getElementById("grammar-filters");
 const levelFilters = document.getElementById("level-filters");
 const startSetBtn = document.getElementById("start-set-btn");
 const resetStatsBtn = document.getElementById("reset-stats-btn");
-const toggleWrongOnlyBtn = document.getElementById("toggle-wrong-only-btn");
 const homeStatus = document.getElementById("home-status");
 const levelProgress = document.getElementById("level-progress");
 const setSummary = document.getElementById("set-summary");
@@ -58,7 +56,7 @@ const toggleWordHintsBtn = document.getElementById("toggle-word-hints-btn");
 const wordHintPanel = document.getElementById("word-hint-panel");
 const wordHintText = document.getElementById("word-hint-text");
 const DEFAULT_SHEET_URL =
-  "https://docs.google.com/spreadsheets/d/1A4oxIkzDYQ2sAhdLCATzU2Yi7-jflm01kkxhIjmuLo4/edit?gid=863237441#gid=863237441";
+  "https://docs.google.com/spreadsheets/d/1oyFDh3Y4RoooTTmJjC-cXjQlCJIroDCz9eTVNebAKE4/edit?gid=863237441#gid=863237441";
 const DEFAULT_HINT_TEXT = "";
 
 const shuffleArray = (array) => {
@@ -130,8 +128,6 @@ const clearStatsForGrammar = (grammar) => {
   }
   return changed;
 };
-
-const isWrongOnlyEligible = (stats, lesson) => getLessonStats(stats, lesson.id).wrong > 0;
 
 const updateLessonStats = (lessonId, isCorrect) => {
   const stats = loadStats();
@@ -303,11 +299,48 @@ const parseCsv = (text) => {
 
 const parseHintCell = (cell) => (cell ?? "").trim();
 
-const parseDummyWords = (cell) =>
-  (cell ?? "")
-    .split(/[\s,;|]+/)
-    .map((word) => word.trim())
-    .filter(Boolean);
+const parseWordMeanings = (cell, words) => {
+  const raw = (cell ?? "").trim();
+  if (!raw) {
+    return words.map(() => "");
+  }
+  const phrasePattern = /\[([^\]]+)\]\s*:\s*([^|]+)(?:\||$)/g;
+  const phraseMatches = Array.from(raw.matchAll(phrasePattern));
+  if (phraseMatches.length > 0) {
+    const normalizedWords = words.map((word) => word.toLowerCase());
+    const result = words.map(() => "");
+    phraseMatches.forEach((match) => {
+      const phraseWords = match[1]
+        .trim()
+        .split(/\s+/)
+        .map((word) => word.toLowerCase())
+        .filter(Boolean);
+      const meaning = match[2].trim();
+      if (phraseWords.length === 0 || !meaning) {
+        return;
+      }
+      for (let i = 0; i <= normalizedWords.length - phraseWords.length; i += 1) {
+        const matched = phraseWords.every(
+          (phraseWord, offset) => normalizedWords[i + offset] === phraseWord
+        );
+        if (matched) {
+          result[i] = meaning;
+          for (let offset = 1; offset < phraseWords.length; offset += 1) {
+            if (!result[i + offset]) {
+              result[i + offset] = "";
+            }
+          }
+        }
+      }
+    });
+    return result;
+  }
+  const parsed = raw.split("|").map((item) => item.trim());
+  if (parsed.length >= words.length) {
+    return parsed.slice(0, words.length);
+  }
+  return [...parsed, ...words.slice(parsed.length).map(() => "")];
+};
 
 const buildLessonSlots = (row, slotIndices) => {
   const indices = slotIndices ?? [2, 3, 4, 5, 6];
@@ -346,11 +379,10 @@ const buildHeaderMap = (headerRow) => {
   const hintIdx = hintCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
-  const dummyCandidates = ["ダミー単語", "ダミー", "Dummy Words", "Dummy"];
-  const dummyIdx = dummyCandidates
+  const wordMeaningCandidates = ["単語訳", "単語ごとの意味", "Word Glosses", "Word Gloss"];
+  const wordMeaningIdx = wordMeaningCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
-  const fallbackDummyIdx = normalized.length > 12 ? 12 : -1;
   const required = [
     "ID",
     "学年",
@@ -368,7 +400,7 @@ const buildHeaderMap = (headerRow) => {
       grammarIdx: findIndex("文法項目"),
       levelIdx: findIndex("難易度"),
       hintIdx,
-      dummyIdx: dummyIdx ?? fallbackDummyIdx,
+      wordMeaningIdx,
       slotIndices,
       hasHeader: true,
     };
@@ -384,8 +416,7 @@ const buildLessonFromRow = (row, headerMap) => {
   const words = english.length > 0 ? english.split(" ") : slots.flat().filter(Boolean);
   const level = parseLevelValue(row[headerMap.levelIdx ?? 7] ?? "1");
   const hintText = parseHintCell(row[headerMap.hintIdx ?? -1] ?? "");
-  const dummyIndex = headerMap.dummyIdx ?? -1;
-  const dummyWords = parseDummyWords(dummyIndex >= 0 ? row[dummyIndex] : "");
+  const wordMeanings = parseWordMeanings(row[headerMap.wordMeaningIdx ?? -1] ?? "", words);
   return {
     id: (row[headerMap.idIdx ?? -1] ?? "").trim() || undefined,
     grade: (row[headerMap.gradeIdx ?? -1] ?? "").trim(),
@@ -394,7 +425,7 @@ const buildLessonFromRow = (row, headerMap) => {
     words,
     slots,
     hintText,
-    dummyWords,
+    wordMeanings,
     level,
   };
 };
@@ -540,8 +571,12 @@ const countOccurrences = (list) =>
 
 const renderWordBank = (words) => {
   const selectedCounts = countOccurrences(slotWords.flat());
+  const lesson = currentLesson();
+  const showWordMeanings = !wordHintPanel.hidden;
   wordBank.innerHTML = "";
-  words.forEach((word) => {
+  words.forEach((word, index) => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "word-piece";
     const button = document.createElement("button");
     button.className = "word";
     button.type = "button";
@@ -556,7 +591,14 @@ const renderWordBank = (words) => {
       button.draggable = false;
       selectedCounts[word] -= 1;
     }
-    wordBank.appendChild(button);
+    wrapper.appendChild(button);
+    if (showWordMeanings) {
+      const meaning = document.createElement("p");
+      meaning.className = "word-meaning";
+      meaning.textContent = lesson.wordMeanings?.[index] || "";
+      wrapper.appendChild(meaning);
+    }
+    wordBank.appendChild(wrapper);
   });
 };
 
@@ -568,8 +610,7 @@ const pickSetLessons = () => {
     .filter((item) => selectedGrades.has(item.lesson.grade))
     .filter((item) =>
       selectedGrammar.size === 0 ? true : selectedGrammar.has(item.lesson.grammar)
-    )
-    .filter((item) => (wrongOnlyMode ? isWrongOnlyEligible(stats, item.lesson) : true));
+    );
   const prioritized = eligible.map(({ lesson, index }) => {
     const entry = getLessonStats(stats, lesson.id);
     return {
@@ -603,17 +644,14 @@ const filteredLessons = (stats = loadStats()) =>
       selectedLevels.has(lesson.level) &&
       selectedGrades.has(lesson.grade) &&
       (selectedGrammar.size === 0 || selectedGrammar.has(lesson.grammar));
-    const matchesWrongOnly = wrongOnlyMode ? isWrongOnlyEligible(stats, lesson) : true;
-    return matchesFilters && matchesWrongOnly;
+    return matchesFilters;
   });
 
 const updateHomeStatus = () => {
   const stats = loadStats();
   const levelLessons = filteredLessons(stats);
   if (levelLessons.length === 0) {
-    homeStatus.textContent = wrongOnlyMode
-      ? "間違えた問題がありません。"
-      : "条件に合う問題がありません。";
+    homeStatus.textContent = "条件に合う問題がありません。";
     return;
   }
   const allCorrect = levelLessons.every((lesson) => getLessonStats(stats, lesson.id).correct > 0);
@@ -631,7 +669,7 @@ const updateLevelProgress = () => {
   const rate = total === 0 ? 0 : Math.round((correct / total) * 100);
   levelProgress.innerHTML =
     total === 0
-      ? "のレベルには問題がありません。"
+      ? "このレベルには問題がありません。"
       : `正解達成率: <strong>${rate}%</strong>`;
 };
 
@@ -738,10 +776,7 @@ const updateProgress = () => {
 
 const currentLesson = () => lessons[currentSet[setIndex]];
 
-const getWordBankWords = (lesson) =>
-  lesson.dummyWords && lesson.dummyWords.length > 0
-    ? [...lesson.words, ...lesson.dummyWords]
-    : lesson.words;
+const getWordBankWords = (lesson) => lesson.words;
 
 const loadLesson = () => {
   const lesson = currentLesson();
@@ -940,6 +975,7 @@ const checkAnswer = () => {
     wordHintPanel.hidden = false;
     toggleWordHintsBtn.textContent = "ヒントを隠す";
     hintUsedForLesson = true;
+    renderWordBank(shuffleArray(getWordBankWords(lesson)));
     nextBtn.hidden = false;
     checkBtn.disabled = true;
     resetBtn.disabled = true;
@@ -1050,12 +1086,6 @@ if (resetGrammarBtn && resetGrammarSelect) {
     }
   });
 }
-toggleWrongOnlyBtn.addEventListener("click", () => {
-  wrongOnlyMode = !wrongOnlyMode;
-  toggleWrongOnlyBtn.textContent = wrongOnlyMode ? "間違い問題モード: ON" : "間違い問題モード: OFF";
-  updateHomeStatus();
-  updateLevelProgress();
-});
 toggleWordHintsBtn.addEventListener("click", () => {
   wordHintPanel.hidden = !wordHintPanel.hidden;
   toggleWordHintsBtn.textContent = wordHintPanel.hidden
@@ -1064,6 +1094,9 @@ toggleWordHintsBtn.addEventListener("click", () => {
   if (!wordHintPanel.hidden) {
     hintUsedForLesson = true;
   }
+  if (!quizScreen.hidden && currentSet.length > 0) {
+    renderWordBank(shuffleArray(getWordBankWords(currentLesson())));
+  }
 });
 toggleProgressBtn.addEventListener("click", () => {
   progressPanel.hidden = !progressPanel.hidden;
@@ -1071,7 +1104,6 @@ toggleProgressBtn.addEventListener("click", () => {
     renderProgressTables();
   }
 });
-
 renderGradeFilters();
 renderGrammarFilters();
 renderResetGrammarOptions();
