@@ -2,11 +2,13 @@ let lessons = [];
 
 const SET_SIZE = 10;
 const STATS_KEY = "englishPuzzleStats";
+const FILTERS_KEY = "englishPuzzleFilters";
 let currentSet = [];
 let setIndex = 0;
 let setScore = 0;
 let gradeOptions = ["中1", "中2", "中3"];
 let selectedGrades = new Set(gradeOptions);
+let selectedStudyingGrammar = new Set();
 let selectedGrammar = new Set();
 let selectedLevels = new Set([1, 2, 3]);
 let hintUsedForLesson = false;
@@ -35,6 +37,7 @@ const confetti = document.getElementById("confetti");
 const homeScreen = document.getElementById("home-screen");
 const quizScreen = document.getElementById("quiz-screen");
 const gradeFilters = document.getElementById("grade-filters");
+const studyingGrammarFilters = document.getElementById("studying-grammar-filters");
 const grammarFilters = document.getElementById("grammar-filters");
 const levelFilters = document.getElementById("level-filters");
 const startSetBtn = document.getElementById("start-set-btn");
@@ -100,6 +103,32 @@ const saveStats = (stats) => {
 
 const clearStats = () => {
   localStorage.removeItem(STATS_KEY);
+};
+
+const loadFilters = () => {
+  const raw = localStorage.getItem(FILTERS_KEY);
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return parsed;
+  } catch (error) {
+    return null;
+  }
+};
+
+const saveFilters = () => {
+  const payload = {
+    grades: Array.from(selectedGrades),
+    studyingGrammar: Array.from(selectedStudyingGrammar),
+    grammar: Array.from(selectedGrammar),
+    levels: Array.from(selectedLevels),
+  };
+  localStorage.setItem(FILTERS_KEY, JSON.stringify(payload));
 };
 
 const getLessonStats = (stats, lessonId) =>
@@ -171,6 +200,7 @@ const renderGradeFilters = () => {
         } else {
           selectedGrades.delete(grade);
         }
+        saveFilters();
         updateHomeStatus();
         updateLevelProgress();
       }
@@ -199,11 +229,51 @@ const renderGrammarFilters = () => {
         } else {
           selectedGrammar.delete(grammar);
         }
+        saveFilters();
         updateHomeStatus();
         updateLevelProgress();
       }
     );
     grammarFilters.appendChild(option);
+  });
+};
+
+const renderStudyingGrammarFilters = () => {
+  if (!studyingGrammarFilters) {
+    return;
+  }
+  studyingGrammarFilters.innerHTML = "";
+  const options = Array.from(
+    new Set(
+      lessons
+        .flatMap((lesson) => lesson.studyingGrammar ?? [])
+        .filter(Boolean)
+    )
+  );
+  if (options.length === 0) {
+    selectedStudyingGrammar = new Set();
+    return;
+  }
+  if (selectedStudyingGrammar.size === 0) {
+    selectedStudyingGrammar = new Set(options);
+  }
+  options.forEach((item) => {
+    const option = buildCheckboxOption(
+      item,
+      item,
+      selectedStudyingGrammar.has(item),
+      (event) => {
+        if (event.target.checked) {
+          selectedStudyingGrammar.add(item);
+        } else {
+          selectedStudyingGrammar.delete(item);
+        }
+        saveFilters();
+        updateHomeStatus();
+        updateLevelProgress();
+      }
+    );
+    studyingGrammarFilters.appendChild(option);
   });
 };
 
@@ -247,6 +317,7 @@ const renderLevelFilters = () => {
         } else {
           selectedLevels.delete(value);
         }
+        saveFilters();
         updateHomeStatus();
         updateLevelProgress();
       }
@@ -342,6 +413,17 @@ const parseWordMeanings = (cell, words) => {
   return [...parsed, ...words.slice(parsed.length).map(() => "")];
 };
 
+const parseStudyingGrammarCell = (cell, fallbackGrammar) => {
+  const raw = (cell ?? "").trim();
+  if (!raw) {
+    return fallbackGrammar ? [fallbackGrammar] : [];
+  }
+  return raw
+    .split(/[|;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
 const buildLessonSlots = (row, slotIndices) => {
   const indices = slotIndices ?? [2, 3, 4, 5, 6];
   const slotValues = indices.map((index) => (row[index] ?? "").trim());
@@ -383,6 +465,10 @@ const buildHeaderMap = (headerRow) => {
   const wordMeaningIdx = wordMeaningCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
+  const studyingGrammarCandidates = ["学習中の文法", "学習中文法", "学習中", "In Progress Grammar"];
+  const studyingGrammarIdx = studyingGrammarCandidates
+    .map((label) => findIndex(label))
+    .find((index) => index >= 0);
   const required = [
     "ID",
     "学年",
@@ -401,6 +487,7 @@ const buildHeaderMap = (headerRow) => {
       levelIdx: findIndex("難易度"),
       hintIdx,
       wordMeaningIdx,
+      studyingGrammarIdx,
       slotIndices,
       hasHeader: true,
     };
@@ -415,17 +502,23 @@ const buildLessonFromRow = (row, headerMap) => {
   const english = (row[englishIdx] ?? "").trim();
   const words = english.length > 0 ? english.split(" ") : slots.flat().filter(Boolean);
   const level = parseLevelValue(row[headerMap.levelIdx ?? 7] ?? "1");
+  const grammar = (row[headerMap.grammarIdx ?? -1] ?? "").trim();
   const hintText = parseHintCell(row[headerMap.hintIdx ?? -1] ?? "");
   const wordMeanings = parseWordMeanings(row[headerMap.wordMeaningIdx ?? -1] ?? "", words);
+  const studyingGrammar = parseStudyingGrammarCell(
+    row[headerMap.studyingGrammarIdx ?? -1] ?? "",
+    grammar
+  );
   return {
     id: (row[headerMap.idIdx ?? -1] ?? "").trim() || undefined,
     grade: (row[headerMap.gradeIdx ?? -1] ?? "").trim(),
-    grammar: (row[headerMap.grammarIdx ?? -1] ?? "").trim(),
+    grammar,
     japanese: (row[japaneseIdx] ?? "").trim(),
     words,
     slots,
     hintText,
     wordMeanings,
+    studyingGrammar,
     level,
   };
 };
@@ -609,6 +702,11 @@ const pickSetLessons = () => {
     .filter((item) => selectedLevels.has(item.lesson.level))
     .filter((item) => selectedGrades.has(item.lesson.grade))
     .filter((item) =>
+      selectedStudyingGrammar.size === 0
+        ? true
+        : item.lesson.studyingGrammar?.some((value) => selectedStudyingGrammar.has(value))
+    )
+    .filter((item) =>
       selectedGrammar.size === 0 ? true : selectedGrammar.has(item.lesson.grammar)
     );
   const prioritized = eligible.map(({ lesson, index }) => {
@@ -643,6 +741,8 @@ const filteredLessons = (stats = loadStats()) =>
     const matchesFilters =
       selectedLevels.has(lesson.level) &&
       selectedGrades.has(lesson.grade) &&
+      (selectedStudyingGrammar.size === 0 ||
+        lesson.studyingGrammar?.some((value) => selectedStudyingGrammar.has(value))) &&
       (selectedGrammar.size === 0 || selectedGrammar.has(lesson.grammar));
     return matchesFilters;
   });
@@ -875,16 +975,44 @@ const applyLessons = (newLessons) => {
   const derivedGrades = Array.from(
     new Set(lessons.map((lesson) => lesson.grade).filter(Boolean))
   );
+  const grammarOptions = Array.from(
+    new Set(lessons.map((lesson) => lesson.grammar).filter(Boolean))
+  );
+  const studyingGrammarOptions = Array.from(
+    new Set(lessons.flatMap((lesson) => lesson.studyingGrammar ?? []).filter(Boolean))
+  );
+  const savedFilters = loadFilters();
   if (derivedGrades.length > 0) {
     gradeOptions = derivedGrades;
   }
-  selectedGrades = new Set(gradeOptions);
-  selectedGrammar = new Set();
+  const savedGrades = savedFilters?.grades ?? [];
+  selectedGrades = new Set(gradeOptions.filter((grade) => savedGrades.includes(grade)));
+  if (selectedGrades.size === 0) {
+    selectedGrades = new Set(gradeOptions);
+  }
+  const savedGrammar = savedFilters?.grammar ?? [];
+  selectedGrammar = new Set(grammarOptions.filter((grammar) => savedGrammar.includes(grammar)));
+  if (selectedGrammar.size === 0) {
+    selectedGrammar = new Set(grammarOptions);
+  }
+  const savedStudyingGrammar = savedFilters?.studyingGrammar ?? [];
+  selectedStudyingGrammar = new Set(
+    studyingGrammarOptions.filter((item) => savedStudyingGrammar.includes(item))
+  );
+  if (selectedStudyingGrammar.size === 0) {
+    selectedStudyingGrammar = new Set(studyingGrammarOptions);
+  }
+  const savedLevels = (savedFilters?.levels ?? []).map((level) => Number(level));
+  selectedLevels = new Set([1, 2, 3].filter((level) => savedLevels.includes(level)));
+  if (selectedLevels.size === 0) {
+    selectedLevels = new Set([1, 2, 3]);
+  }
   currentSet = [];
   setIndex = 0;
   setScore = 0;
   quizScreen.hidden = true;
   homeScreen.hidden = false;
+  renderStudyingGrammarFilters();
   renderGrammarFilters();
   renderGradeFilters();
   renderResetGrammarOptions();
@@ -894,6 +1022,7 @@ const applyLessons = (newLessons) => {
   if (!progressPanel.hidden) {
     renderProgressTables();
   }
+  saveFilters();
 };
 
 const returnHome = () => {
@@ -1105,6 +1234,7 @@ toggleProgressBtn.addEventListener("click", () => {
   }
 });
 renderGradeFilters();
+renderStudyingGrammarFilters();
 renderGrammarFilters();
 renderResetGrammarOptions();
 renderLevelFilters();
