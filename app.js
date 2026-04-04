@@ -11,6 +11,7 @@ let selectedGrades = new Set(gradeOptions);
 let selectedGrammar = new Set();
 let selectedLevels = new Set([1, 2, 3]);
 let hintUsedForLesson = false;
+let showWordHints = false;
 const slotLabels = [
   "⓪疑問文のとき",
   "①だれは/何は",
@@ -353,10 +354,9 @@ const parseWordMeanings = (cell, words) => {
           (phraseWord, offset) => normalizedWords[i + offset] === phraseWord
         );
         if (matched) {
-          result[i] = meaning;
-          for (let offset = 1; offset < phraseWords.length; offset += 1) {
+          for (let offset = 0; offset < phraseWords.length; offset += 1) {
             if (!result[i + offset]) {
-              result[i + offset] = "";
+              result[i + offset] = meaning;
             }
           }
         }
@@ -601,7 +601,6 @@ const countOccurrences = (list) =>
 
 const renderWordBank = (pieces) => {
   const selectedCounts = countOccurrences(slotWords.flat());
-  const showWordMeanings = !wordHintPanel.hidden;
   wordBank.innerHTML = "";
   pieces.forEach((piece) => {
     const { word, meaning } = piece;
@@ -622,7 +621,7 @@ const renderWordBank = (pieces) => {
       selectedCounts[word] -= 1;
     }
     wrapper.appendChild(button);
-    if (showWordMeanings) {
+    if (showWordHints) {
       const meaningText = document.createElement("p");
       meaningText.className = "word-meaning";
       meaningText.textContent = meaning || "";
@@ -816,6 +815,7 @@ const loadLesson = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
   hintUsedForLesson = false;
+  showWordHints = false;
   wordHintPanel.hidden = true;
   toggleWordHintsBtn.textContent = "ヒントを表示";
   japaneseHint.textContent = lesson.japanese;
@@ -891,6 +891,7 @@ const advanceLesson = () => {
 const renderWordHints = (lesson) => {
   const text = lesson.hintText || DEFAULT_HINT_TEXT || "";
   wordHintText.textContent = text;
+  return text.trim().length > 0;
 };
 
 const areSlotWordsEqual = (currentSlots, expectedSlots) =>
@@ -952,6 +953,7 @@ const returnHome = () => {
   quizScreen.hidden = true;
   homeScreen.hidden = false;
   setSummary.hidden = true;
+  showWordHints = false;
   wordHintPanel.hidden = true;
   toggleWordHintsBtn.textContent = "ヒントを表示";
   updateHomeStatus();
@@ -1024,7 +1026,8 @@ const checkAnswer = () => {
     feedback.className = "feedback error";
     renderAnswerSlots(lesson);
     answerExample.hidden = false;
-    wordHintPanel.hidden = false;
+    showWordHints = true;
+    wordHintPanel.hidden = !renderWordHints(lesson);
     toggleWordHintsBtn.textContent = "ヒントを隠す";
     hintUsedForLesson = true;
     renderWordBank(shuffleArray(getWordBankPieces(lesson)));
@@ -1139,14 +1142,16 @@ if (resetGrammarBtn && resetGrammarSelect) {
   });
 }
 toggleWordHintsBtn.addEventListener("click", () => {
-  wordHintPanel.hidden = !wordHintPanel.hidden;
-  toggleWordHintsBtn.textContent = wordHintPanel.hidden
-    ? "ヒントを表示"
-    : "ヒントを隠す";
-  if (!wordHintPanel.hidden) {
+  showWordHints = !showWordHints;
+  toggleWordHintsBtn.textContent = showWordHints
+    ? "ヒントを隠す"
+    : "ヒントを表示";
+  if (showWordHints) {
     hintUsedForLesson = true;
   }
   if (!quizScreen.hidden && currentSet.length > 0) {
+    const hasHintText = renderWordHints(currentLesson());
+    wordHintPanel.hidden = !showWordHints || !hasHintText;
     renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
   }
 });
