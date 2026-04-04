@@ -572,7 +572,7 @@ const renderSlots = () => {
           }
         }
         renderSlots();
-        renderWordBank(shuffleArray(getWordBankWords(currentLesson())));
+        renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
       },
     });
     slots.appendChild(slotCard);
@@ -599,12 +599,12 @@ const countOccurrences = (list) =>
     return accumulator;
   }, {});
 
-const renderWordBank = (words) => {
+const renderWordBank = (pieces) => {
   const selectedCounts = countOccurrences(slotWords.flat());
-  const lesson = currentLesson();
   const showWordMeanings = !wordHintPanel.hidden;
   wordBank.innerHTML = "";
-  words.forEach((word, index) => {
+  pieces.forEach((piece) => {
+    const { word, meaning } = piece;
     const wrapper = document.createElement("div");
     wrapper.className = "word-piece";
     const button = document.createElement("button");
@@ -623,10 +623,10 @@ const renderWordBank = (words) => {
     }
     wrapper.appendChild(button);
     if (showWordMeanings) {
-      const meaning = document.createElement("p");
-      meaning.className = "word-meaning";
-      meaning.textContent = lesson.wordMeanings?.[index] || "";
-      wrapper.appendChild(meaning);
+      const meaningText = document.createElement("p");
+      meaningText.className = "word-meaning";
+      meaningText.textContent = meaning || "";
+      wrapper.appendChild(meaningText);
     }
     wordBank.appendChild(wrapper);
   });
@@ -806,7 +806,11 @@ const updateProgress = () => {
 
 const currentLesson = () => lessons[currentSet[setIndex]];
 
-const getWordBankWords = (lesson) => lesson.words;
+const getWordBankPieces = (lesson) =>
+  lesson.words.map((word, index) => ({
+    word,
+    meaning: lesson.wordMeanings?.[index] || "",
+  }));
 
 const loadLesson = () => {
   const lesson = currentLesson();
@@ -816,7 +820,7 @@ const loadLesson = () => {
   toggleWordHintsBtn.textContent = "ヒントを表示";
   japaneseHint.textContent = lesson.japanese;
   renderSlots();
-  renderWordBank(shuffleArray(getWordBankWords(lesson)));
+  renderWordBank(shuffleArray(getWordBankPieces(lesson)));
   feedback.textContent = "";
   feedback.className = "feedback";
   answerExample.hidden = true;
@@ -847,14 +851,14 @@ wordBank.addEventListener("drop", (event) => {
   if (source === "slot" && Number.isFinite(sourceIndex) && Number.isFinite(wordIndex)) {
     slotWords[sourceIndex].splice(wordIndex, 1);
     renderSlots();
-    renderWordBank(shuffleArray(getWordBankWords(currentLesson())));
+    renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
   }
 });
 
 const addWord = (word) => {
   const lesson = currentLesson();
   const selectedCount = countOccurrences(slotWords.flat())[word] ?? 0;
-  const totalCount = getWordBankWords(lesson).filter((item) => item === word).length;
+  const totalCount = lesson.words.filter((item) => item === word).length;
   if (selectedCount >= totalCount) {
     return false;
   }
@@ -865,7 +869,7 @@ const resetAnswer = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
   renderSlots();
-  renderWordBank(shuffleArray(getWordBankWords(lesson)));
+  renderWordBank(shuffleArray(getWordBankPieces(lesson)));
   feedback.textContent = "";
   feedback.className = "feedback";
   answerExample.hidden = true;
@@ -885,7 +889,7 @@ const advanceLesson = () => {
 };
 
 const renderWordHints = (lesson) => {
-  const text = lesson.hintText || DEFAULT_HINT_TEXT || "ヒントがありません。";
+  const text = lesson.hintText || DEFAULT_HINT_TEXT || "";
   wordHintText.textContent = text;
 };
 
@@ -955,7 +959,7 @@ const returnHome = () => {
 };
 
 const resetStats = () => {
-  const message = "今までの学習データが全て消えます本当にリセットしますか";
+  const message = "今までの学習データが全て消えます。本当にリセットしますか";
   if (!window.confirm(message)) {
     return;
   }
@@ -1023,7 +1027,7 @@ const checkAnswer = () => {
     wordHintPanel.hidden = false;
     toggleWordHintsBtn.textContent = "ヒントを隠す";
     hintUsedForLesson = true;
-    renderWordBank(shuffleArray(getWordBankWords(lesson)));
+    renderWordBank(shuffleArray(getWordBankPieces(lesson)));
     nextBtn.hidden = false;
     checkBtn.disabled = true;
     resetBtn.disabled = true;
@@ -1143,7 +1147,7 @@ toggleWordHintsBtn.addEventListener("click", () => {
     hintUsedForLesson = true;
   }
   if (!quizScreen.hidden && currentSet.length > 0) {
-    renderWordBank(shuffleArray(getWordBankWords(currentLesson())));
+    renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
   }
 });
 toggleProgressBtn.addEventListener("click", () => {
