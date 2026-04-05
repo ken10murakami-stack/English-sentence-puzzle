@@ -329,12 +329,48 @@ const parseCsv = (text) => {
 
 const parseHintCell = (cell) => (cell ?? "").trim();
 
+const parsePhraseGroups = (cell, words) => {
+  const raw = (cell ?? "").trim();
+  if (!raw) {
+    return [];
+  }
+  const phrasePattern = /\[([^\]]+)\]\s*[:：]\s*([^|｜]+)(?:[|｜]|$)/g;
+  const phraseMatches = Array.from(raw.matchAll(phrasePattern));
+  if (phraseMatches.length === 0) {
+    return [];
+  }
+  const normalizedWords = words.map((word) => word.toLowerCase());
+  const groups = [];
+  phraseMatches.forEach((match) => {
+    const phraseWords = match[1]
+      .trim()
+      .split(/\s+/)
+      .map((word) => word.toLowerCase())
+      .filter(Boolean);
+    if (phraseWords.length <= 1) {
+      return;
+    }
+    for (let i = 0; i <= normalizedWords.length - phraseWords.length; i += 1) {
+      const matched = phraseWords.every(
+        (phraseWord, offset) => normalizedWords[i + offset] === phraseWord
+      );
+      if (matched) {
+        groups.push({
+          start: i,
+          end: i + phraseWords.length - 1,
+        });
+      }
+    }
+  });
+  return groups;
+};
+
 const parseWordMeanings = (cell, words) => {
   const raw = (cell ?? "").trim();
   if (!raw) {
     return words.map(() => "");
   }
-  const phrasePattern = /\[([^\]]+)\]\s*:\s*([^|]+)(?:\||$)/g;
+  const phrasePattern = /\[([^\]]+)\]\s*[:：]\s*([^|｜]+)(?:[|｜]|$)/g;
   const phraseMatches = Array.from(raw.matchAll(phrasePattern));
   if (phraseMatches.length > 0) {
     const normalizedWords = words.map((word) => word.toLowerCase());
@@ -354,17 +390,15 @@ const parseWordMeanings = (cell, words) => {
           (phraseWord, offset) => normalizedWords[i + offset] === phraseWord
         );
         if (matched) {
-          for (let offset = 0; offset < phraseWords.length; offset += 1) {
-            if (!result[i + offset]) {
-              result[i + offset] = meaning;
-            }
+          if (!result[i]) {
+            result[i] = meaning;
           }
         }
       }
     });
     return result;
   }
-  const parsed = raw.split("|").map((item) => item.trim());
+  const parsed = raw.split(/[|｜]/).map((item) => item.trim());
   if (parsed.length >= words.length) {
     return parsed.slice(0, words.length);
   }
@@ -408,7 +442,13 @@ const buildHeaderMap = (headerRow) => {
   const hintIdx = hintCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
-  const wordMeaningCandidates = ["単語訳", "単語ごとの意味", "Word Glosses", "Word Gloss"];
+  const wordMeaningCandidates = [
+    "単語訳",
+    "単語意味",
+    "単語ごとの意味",
+    "Word Glosses",
+    "Word Gloss",
+  ];
   const wordMeaningIdx = wordMeaningCandidates
     .map((label) => findIndex(label))
     .find((index) => index >= 0);
@@ -445,8 +485,14 @@ const buildLessonFromRow = (row, headerMap) => {
   const words = english.length > 0 ? english.split(" ") : slots.flat().filter(Boolean);
   const level = parseLevelValue(row[headerMap.levelIdx ?? 7] ?? "1");
   const grammar = (row[headerMap.grammarIdx ?? -1] ?? "").trim();
-  const hintText = parseHintCell(row[headerMap.hintIdx ?? -1] ?? "");
-  const wordMeanings = parseWordMeanings(row[headerMap.wordMeaningIdx ?? -1] ?? "", words);
+  const hintCell = row[headerMap.hintIdx ?? -1] ?? "";
+  const hintText = parseHintCell(hintCell);
+  let wordMeaningCell = row[headerMap.wordMeaningIdx ?? -1] ?? "";
+  if (!wordMeaningCell && /[|｜\[]/.test(hintCell)) {
+    wordMeaningCell = hintCell;
+  }
+  const wordMeanings = parseWordMeanings(wordMeaningCell, words);
+  const phraseGroups = parsePhraseGroups(wordMeaningCell, words);
   return {
     id: (row[headerMap.idIdx ?? -1] ?? "").trim() || undefined,
     grade: (row[headerMap.gradeIdx ?? -1] ?? "").trim(),
@@ -456,6 +502,7 @@ const buildLessonFromRow = (row, headerMap) => {
     slots,
     hintText,
     wordMeanings,
+    phraseGroups,
     level,
   };
 };
@@ -572,7 +619,7 @@ const renderSlots = () => {
           }
         }
         renderSlots();
-        renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
+        renderWordBank(getDisplayWordBankPieces(currentLesson()));
       },
     });
     slots.appendChild(slotCard);
@@ -811,6 +858,41 @@ const getWordBankPieces = (lesson) =>
     meaning: lesson.wordMeanings?.[index] || "",
   }));
 
+const getDisplayWordBankPieces = (lesson) => {
+  const pieces = getWordBankPieces(lesson);
+  if (!showWordHints) {
+    return shuffleArray(pieces);
+  }
+  const phraseGroups = [...(lesson.phraseGroups ?? [])].sort((a, b) => a.start - b.start);
+  if (phraseGroups.length === 0) {
+    return shuffleArray(pieces);
+  }
+
+  const occupied = new Set();
+  const chunks = [];
+  phraseGroups.forEach((group) => {
+    const hasOverlap = Array.from(
+      { length: group.end - group.start + 1 },
+      (_, offset) => group.start + offset
+    ).some((index) => occupied.has(index));
+    if (hasOverlap) {
+      return;
+    }
+    const chunk = [];
+    for (let index = group.start; index <= group.end; index += 1) {
+      occupied.add(index);
+      chunk.push(pieces[index]);
+    }
+    chunks.push(chunk);
+  });
+  pieces.forEach((piece, index) => {
+    if (!occupied.has(index)) {
+      chunks.push([piece]);
+    }
+  });
+  return shuffleArray(chunks).flat();
+};
+
 const loadLesson = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
@@ -820,7 +902,7 @@ const loadLesson = () => {
   toggleWordHintsBtn.textContent = "ヒントを表示";
   japaneseHint.textContent = lesson.japanese;
   renderSlots();
-  renderWordBank(shuffleArray(getWordBankPieces(lesson)));
+  renderWordBank(getDisplayWordBankPieces(lesson));
   feedback.textContent = "";
   feedback.className = "feedback";
   answerExample.hidden = true;
@@ -851,7 +933,7 @@ wordBank.addEventListener("drop", (event) => {
   if (source === "slot" && Number.isFinite(sourceIndex) && Number.isFinite(wordIndex)) {
     slotWords[sourceIndex].splice(wordIndex, 1);
     renderSlots();
-    renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
+    renderWordBank(getDisplayWordBankPieces(currentLesson()));
   }
 });
 
@@ -869,7 +951,7 @@ const resetAnswer = () => {
   const lesson = currentLesson();
   slotWords = Array.from({ length: slotLabels.length }, () => []);
   renderSlots();
-  renderWordBank(shuffleArray(getWordBankPieces(lesson)));
+  renderWordBank(getDisplayWordBankPieces(lesson));
   feedback.textContent = "";
   feedback.className = "feedback";
   answerExample.hidden = true;
@@ -1030,7 +1112,7 @@ const checkAnswer = () => {
     wordHintPanel.hidden = !renderWordHints(lesson);
     toggleWordHintsBtn.textContent = "ヒントを隠す";
     hintUsedForLesson = true;
-    renderWordBank(shuffleArray(getWordBankPieces(lesson)));
+    renderWordBank(getDisplayWordBankPieces(lesson));
     nextBtn.hidden = false;
     checkBtn.disabled = true;
     resetBtn.disabled = true;
@@ -1152,7 +1234,7 @@ toggleWordHintsBtn.addEventListener("click", () => {
   if (!quizScreen.hidden && currentSet.length > 0) {
     const hasHintText = renderWordHints(currentLesson());
     wordHintPanel.hidden = !showWordHints || !hasHintText;
-    renderWordBank(shuffleArray(getWordBankPieces(currentLesson())));
+    renderWordBank(getDisplayWordBankPieces(currentLesson()));
   }
 });
 toggleProgressBtn.addEventListener("click", () => {
