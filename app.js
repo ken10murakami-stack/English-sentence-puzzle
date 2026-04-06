@@ -383,5 +383,102 @@ el.toggleWordHintsBtn.addEventListener("click", () => {
   el.wordHintPanel.hidden = !state.ui.showWordHints;
   Renderer.renderWordBank(Logic.getDisplayPieces(Logic.currentLesson())); 
 });
+/**
+ * 10. INITIALIZE (イベントリスナーの完全登録)
+ */
+const initializeApp = () => {
+  // --- 1. クイズ開始・ナビゲーション ---
+  el.startSetBtn.addEventListener("click", () => {
+    state.currentSet = Logic.pickSet();
+    if (state.currentSet.length > 0) {
+      state.setIndex = 0;
+      state.setScore = 0;
+      el.quizScreen.hidden = false;
+      el.homeScreen.hidden = true;
+      Actions.loadLesson();
+    } else {
+      el.homeStatus.textContent = "条件に合う問題がありません。選択範囲を確認してください。";
+    }
+  });
 
+  el.homeBtn.addEventListener("click", () => {
+    el.quizScreen.hidden = true;
+    el.homeScreen.hidden = false;
+    Actions.updateStatus(); // ホームに戻った時に進捗を更新
+  });
+
+  // --- 2. クイズ操作 ---
+  el.checkBtn.addEventListener("click", Logic.checkAnswer);
+  el.resetBtn.addEventListener("click", Actions.loadLesson);
+  el.nextBtn.addEventListener("click", Actions.advanceLesson);
+  el.setNextBtn.addEventListener("click", () => el.startSetBtn.click());
+
+  // --- 3. 学習データ管理 (保存/リセット/表示) ---
+  if (el.exportStatsBtn) {
+    el.exportStatsBtn.addEventListener("click", () => {
+      const stats = Storage.loadStats();
+      const blob = new Blob([JSON.stringify(stats, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "english-puzzle-stats.json";
+      a.click();
+      URL.revokeObjectURL(url);
+      el.homeStatus.textContent = "学習データを保存しました。";
+    });
+  }
+
+  if (el.resetStatsBtn) {
+    el.resetStatsBtn.addEventListener("click", () => {
+      if (confirm("すべての学習記録をリセットしますか？")) {
+        Storage.saveStats({});
+        Actions.updateStatus();
+        el.homeStatus.textContent = "記録をリセットしました。";
+      }
+    });
+  }
+
+  if (el.toggleProgressBtn) {
+    el.toggleProgressBtn.addEventListener("click", () => {
+      el.progressPanel.hidden = !el.progressPanel.hidden;
+      // 達成状況表示のテーブル描画が必要な場合はここに追記
+    });
+  }
+
+  // --- 4. フィルター操作 (学年・難易度) ---
+  const setupFilters = (containerId, filterSet) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll("input[type='checkbox']").forEach(input => {
+      // 初期状態を反映
+      if (input.checked) filterSet.add(isNaN(input.value) ? input.value : Number(input.value));
+      
+      input.addEventListener("change", (e) => {
+        const val = isNaN(e.target.value) ? e.target.value : Number(e.target.value);
+        e.target.checked ? filterSet.add(val) : filterSet.delete(val);
+        Actions.updateStatus();
+        Storage.saveFilters(); // フィルター状態を保存
+      });
+    });
+  };
+
+  setupFilters("grade-filters", state.filters.grades);
+  setupFilters("level-filters", state.filters.levels);
+
+  // --- 5. ヒント切り替え ---
+  if (el.toggleWordHintsBtn) {
+    el.toggleWordHintsBtn.addEventListener("click", () => { 
+      state.ui.showWordHints = !state.ui.showWordHints; 
+      el.wordHintPanel.hidden = !state.ui.showWordHints;
+      el.toggleWordHintsBtn.textContent = state.ui.showWordHints ? "ヒントを隠す" : "ヒントを表示";
+      Renderer.renderWordBank(Logic.getDisplayPieces(Logic.currentLesson())); 
+    });
+  }
+
+  // 最後にデータの読み込みを開始
+  DataLoader.load();
+};
+
+// 実行
+initializeApp();
 DataLoader.load();
