@@ -472,3 +472,176 @@ const initializeApp = () => {
 
 // 実行
 initializeApp();
+/**
+ * 8. QUIZ LOGIC (追加：データ解析・抽出ロジック)
+ */
+Object.assign(Logic, {
+  // 元の buildHeaderMap と同等：列のタイトルからインデックスを特定
+  buildHeaderMap: (headerRow) => {
+    const normalized = headerRow.map(cell => cell.trim());
+    const findIdx = (label) => normalized.findIndex(cell => cell === label);
+    
+    const slotIndices = CONFIG.SLOT_LABELS.map(label => findIdx(label));
+    const hintIdx = ["ヒント", "説明", "単語意味", "Meaning"].map(findIdx).find(i => i >= 0);
+    const wordMeaningIdx = ["単語訳", "単語ごとの意味", "Word Gloss"].map(findIdx).find(i => i >= 0);
+
+    return {
+      japaneseIdx: findIdx("日本文"),
+      englishIdx: findIdx("英文"),
+      idIdx: findIdx("ID"),
+      gradeIdx: findIdx("学年"),
+      grammarIdx: findIdx("文法項目"),
+      levelIdx: findIdx("難易度"),
+      hintIdx,
+      wordMeaningIdx,
+      slotIndices,
+      hasHeader: findIdx("日本文") >= 0
+    };
+  },
+
+  // 元の buildLessonFromRow と同等：1行のデータをLessonオブジェクトに変換
+  parseLessonRow: (row, headerMap) => {
+    const japanese = (row[headerMap.japaneseIdx] ?? "").trim();
+    if (!japanese) return null;
+
+    const english = (row[headerMap.englishIdx] ?? "").trim();
+    const level = parseInt(row[headerMap.levelIdx]) || 1;
+    
+    // スロットデータの構築
+    const slots = headerMap.slotIndices.map(idx => {
+      const val = (row[idx] ?? "").trim();
+      return val ? val.split(/\s+/) : [];
+    });
+
+    const words = english ? english.split(/\s+/) : slots.flat().filter(Boolean);
+    const hintCell = (row[headerMap.hintIdx] ?? "").trim();
+    const wordMeaningCell = (row[headerMap.wordMeaningIdx] ?? hintCell).trim();
+
+    return {
+      id: (row[headerMap.idIdx] ?? "").trim() || `ID_${Math.random().toString(36).substr(2, 9)}`,
+      grade: (row[headerMap.gradeIdx] ?? "").trim(),
+      grammar: (row[headerMap.grammarIdx] ?? "").trim(),
+      japanese,
+      words,
+      slots,
+      hintText: hintCell,
+      wordMeanings: Logic.parseWordMeanings(wordMeaningCell, words),
+      phraseGroups: Logic.parsePhraseGroups(wordMeaningCell, words),
+      level
+    };
+  },
+
+  // 補助：単語ごとの意味をパース
+  parseWordMeanings: (cell, words) => {
+    if (!cell) return words.map(() => "");
+    const parts = cell.split(/[|｜]/).map(s => s.trim());
+    return words.map((_, i) => parts[i] || "");
+  },
+
+  // 補助：熟語（[take a bus]など）を特定
+  parsePhraseGroups: (cell, words) => {
+    const pattern = /\[([^\]]+)\]/g;
+    const matches = Array.from(cell.matchAll(pattern));
+    const groups = [];
+    const lowerWords = words.map(w => w.toLowerCase());
+
+    matches.forEach(m => {
+      const pWords = m[1].trim().split(/\s+/).map(w => w.toLowerCase());
+      for (let i = 0; i <= lowerWords.length - pWords.length; i++) {
+        if (pWords.every((pw, offset) => lowerWords[i + offset] === pw)) {
+          groups.push({ start: i, end: i + pWords.length - 1 });
+        }
+      }
+    });
+    return groups;
+  },
+
+  // 問題を10問選出するロジック（統計に基づいた優先順位）
+  pickSet: () => {
+    const stats = Storage.loadStats();
+    const eligible = state.lessons.filter(l => 
+      state.filters.levels.has(l.level) &&
+      state.filters.grades.has(l.grade) &&
+      (state.filters.grammar.size === 0 || state.filters.grammar.has(l.grammar))
+    );
+
+    return Utils.shuffle(eligible)
+      .sort((a, b) => {
+        const sA = stats[a.id] ?? { wrong: 0, attempts: 0 };
+        const sB = stats[b.id] ?? { wrong: 0, attempts: 0 };
+        if (sB.wrong !== sA.wrong) return sB.wrong - sA.wrong; // 負け越し優先
+        return sA.attempts - sB.attempts; // 未着手優先
+      })
+      .slice(0, CONFIG.SET_SIZE)
+      .map(lesson => state.lessons.indexOf(lesson));
+  }
+});
+
+/**
+ * 9. DATA LOADING (完全版：データ取得フロー)
+ */
+const DataLoader = {
+  loadFromSheet: async (url) => {
+    const csvUrl = DataLoader.buildCsvUrl(url);
+    if (!csvUrl) return;
+    try {
+      const response = await fetch(csvUrl);
+      const text = await response.text();
+      const rows = Utils.parseCsv(text);
+      if (rows.length < 2) return;
+
+      const headerMap = Logic.buildHeaderMap(rows[0]);
+      state.lessons = rows.slice(1)
+        .map(row => Logic.parseLessonRow(row, headerMap))
+        .filter(l => l !== null);
+
+      Actions.initFilters(); // フィルターUIを生成
+      Actions.updateHomeStatus(); // ホーム画面のメッセージを更新
+    } catch (e) { console.error("Sheet load failed.", e); }
+  },
+
+  buildCsvUrl: (url) => {
+    const match = url.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    if (!match) return null;
+    const gidMatch = url.match(/gid=([0-9]+)/);
+    const gid = gidMatch ? gidMatch[1] : "0";
+    return `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  }
+};
+
+/**
+ * 10. INITIALIZATION (追加：フィルター初期化などの補助)
+ */
+Actions.initFilters = () => {
+  // 文法項目のリストを作成
+  const grammars = Array.from(new Set(state.lessons.map(l => l.grammar).filter(Boolean)));
+  state.filters.grammar = new Set(grammars);
+  
+  // 各フィルター（学年、文法、レベル）のチェックボックスを描画する処理をここに記述
+  // (元の renderGradeFilters 等を呼び出す)
+  // ... 
+};
+
+// 最後にアプリを起動
+const initializeApp = () => {
+  el.checkBtn.addEventListener("click", Logic.checkAnswer);
+  el.resetBtn.addEventListener("click", () => Actions.loadLesson());
+  el.nextBtn.addEventListener("click", Actions.advanceLesson);
+  el.startSetBtn.addEventListener("click", () => {
+    state.currentSet = Logic.pickSet();
+    if (state.currentSet.length > 0) {
+      state.setIndex = 0; state.setScore = 0;
+      el.quizScreen.hidden = false; el.homeScreen.hidden = true;
+      Actions.loadLesson();
+    } else {
+      el.homeStatus.textContent = "条件に合う問題がありません。";
+    }
+  });
+  el.homeBtn.addEventListener("click", () => {
+    el.quizScreen.hidden = true; el.homeScreen.hidden = false;
+  });
+
+  DataLoader.loadFromSheet(CONFIG.DEFAULT_SHEET_URL);
+};
+
+initializeApp();
