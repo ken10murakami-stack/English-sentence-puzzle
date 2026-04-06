@@ -77,7 +77,7 @@ const el = {
 };
 
 /**
- * 4. UTILITIES & DATA PROCESSING (汎用ロジック)
+ * 4. UTILITIES (汎用ロジック)
  */
 const Utils = {
   shuffle: (array) => {
@@ -88,56 +88,46 @@ const Utils = {
     }
     return copy;
   },
-  normalize: (word) => word.toLowerCase().trim(),
-  generateId: (lesson) => `${lesson.japanese}__${lesson.words.join(" ")}`.replace(/\s+/g, "_"),
+  normalize: (word) => (word || "").toLowerCase().trim(),
   countOccurrences: (list) => list.reduce((acc, word) => { acc[word] = (acc[word] ?? 0) + 1; return acc; }, {}),
-  
   parseCsv: (text) => {
     const rows = []; let row = []; let current = ""; let inQuotes = false;
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
       if (char === '"') {
-        if (inQuotes && text[i + 1] === '"') { current += '"'; i++; } 
-        else { inQuotes = !inQuotes; }
-      } else if (char === ',' && !inQuotes) { row.push(current.trim()); current = ""; }
+        if (inQuotes && text[i + 1] === '"') { current += '"'; i++; } else { inQuotes = !inQuotes; }
+      } else if (char === ',' && !inQuotes) { row.push(current); current = ""; }
       else if ((char === "\n" || char === "\r") && !inQuotes) {
         if (char === "\r" && text[i + 1] === "\n") i++;
-        row.push(current.trim()); rows.push(row); row = []; current = "";
+        row.push(current); rows.push(row); row = []; current = "";
       } else { current += char; }
     }
-    if (current || row.length) { row.push(current.trim()); rows.push(row); }
-    return rows.filter(r => r.some(c => c.length > 0));
+    if (current || row.length) { row.push(current); rows.push(row); }
+    return rows.filter(r => r.some(c => c.trim().length > 0));
   }
 };
 
 /**
- * 5. STORAGE MANAGER (データ保存)
+ * 5. STORAGE & DATA (データ管理)
  */
 const Storage = {
-  loadStats: () => {
-    try { return JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.STATS)) || {}; } 
-    catch { return {}; }
-  },
+  loadStats: () => { try { return JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.STATS)) || {}; } catch { return {}; } },
   saveStats: (stats) => localStorage.setItem(CONFIG.STORAGE_KEYS.STATS, JSON.stringify(stats)),
-  loadFilters: () => {
-    try { return JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.FILTERS)); } 
-    catch { return null; }
-  },
-  saveFilters: (filters) => {
-    const payload = { grades: Array.from(filters.grades), grammar: Array.from(filters.grammar), levels: Array.from(filters.levels) };
+  loadFilters: () => { try { return JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEYS.FILTERS)); } catch { return null; } },
+  saveFilters: () => {
+    const payload = { grades: Array.from(state.filters.grades), grammar: Array.from(state.filters.grammar), levels: Array.from(state.filters.levels) };
     localStorage.setItem(CONFIG.STORAGE_KEYS.FILTERS, JSON.stringify(payload));
   }
 };
+
 /**
  * 6. RENDERING ENGINE (描画処理)
  */
 const Renderer = {
-  // スロットの生成
   createSlotCard: ({ label, words, index, droppable, onDrop }) => {
     const card = document.createElement("div");
     card.className = "slot-card";
     card.innerHTML = `<p class="slot-label">${label}</p>`;
-
     const slotDrop = document.createElement("div");
     slotDrop.className = "slot";
     slotDrop.dataset.index = index;
@@ -145,13 +135,12 @@ const Renderer = {
     if (droppable) {
       slotDrop.addEventListener("dragover", (e) => { e.preventDefault(); slotDrop.classList.add("slot--active"); });
       slotDrop.addEventListener("dragleave", () => slotDrop.classList.remove("slot--active"));
-      slotDrop.addEventListener("drop", (e) => { e.preventDefault(); slotDrop.classList.remove("slot--active"); onDrop(e, slotDrop); });
+      slotDrop.addEventListener("drop", (e) => { e.preventDefault(); slotDrop.classList.remove("slot--active"); onDrop(e, index); });
     }
 
-    words.forEach((word, wordIndex) => {
+    words.forEach((word, wIdx) => {
       const chip = document.createElement("button");
       chip.className = "word word--chip";
-      chip.type = "button";
       chip.textContent = word;
       chip.draggable = droppable;
       if (droppable) {
@@ -159,46 +148,38 @@ const Renderer = {
           e.dataTransfer.setData("text/plain", word);
           e.dataTransfer.setData("source", "slot");
           e.dataTransfer.setData("sourceIndex", String(index));
-          e.dataTransfer.setData("wordIndex", String(wordIndex));
+          e.dataTransfer.setData("wordIndex", String(wIdx));
         });
       }
       slotDrop.appendChild(chip);
     });
-
     card.appendChild(slotDrop);
     return card;
   },
 
-  // 解答欄の描画
   renderSlots: () => {
     el.slots.innerHTML = "";
     CONFIG.SLOT_LABELS.forEach((label, index) => {
-      const card = Renderer.createSlotCard({
-        label,
-        words: state.slotWords[index],
-        index,
-        droppable: true,
-        onDrop: (e) => {
+      el.slots.appendChild(Renderer.createSlotCard({
+        label, words: state.slotWords[index], index, droppable: true,
+        onDrop: (e, targetIdx) => {
           const word = e.dataTransfer.getData("text/plain");
           const source = e.dataTransfer.getData("source");
-          const sIdx = Number(e.dataTransfer.getData("sourceIndex"));
-          const wIdx = Number(e.dataTransfer.getData("wordIndex"));
-
-          if (source === "slot" && Number.isFinite(sIdx)) {
+          if (source === "slot") {
+            const sIdx = Number(e.dataTransfer.getData("sourceIndex"));
+            const wIdx = Number(e.dataTransfer.getData("wordIndex"));
             const [moved] = state.slotWords[sIdx].splice(wIdx, 1);
-            if (moved) state.slotWords[index].push(moved);
-          } else if (source === "bank") {
-            if (Logic.canAddWord(word)) state.slotWords[index].push(word);
+            state.slotWords[targetIdx].push(moved);
+          } else if (Logic.canAddWord(word)) {
+            state.slotWords[targetIdx].push(word);
           }
           Renderer.renderSlots();
           Renderer.renderWordBank(Logic.getDisplayPieces(Logic.currentLesson()));
         }
-      });
-      el.slots.appendChild(card);
+      }));
     });
   },
 
-  // 単語バンクの描画
   renderWordBank: (pieces) => {
     const selectedCounts = Utils.countOccurrences(state.slotWords.flat());
     el.wordBank.innerHTML = "";
@@ -208,29 +189,17 @@ const Renderer = {
       const btn = document.createElement("button");
       btn.className = "word";
       btn.textContent = word;
-      btn.draggable = true;
-      btn.addEventListener("dragstart", (e) => {
-        e.dataTransfer.setData("text/plain", word);
-        e.dataTransfer.setData("source", "bank");
-      });
-
-      if (selectedCounts[word] > 0) {
-        btn.classList.add("disabled");
-        btn.draggable = false;
-        selectedCounts[word]--;
-      }
+      btn.draggable = selectedCounts[word] <= 0;
+      btn.addEventListener("dragstart", (e) => { e.dataTransfer.setData("text/plain", word); e.dataTransfer.setData("source", "bank"); });
+      if (selectedCounts[word] > 0) { btn.classList.add("disabled"); selectedCounts[word]--; }
       wrapper.appendChild(btn);
       if (state.ui.showWordHints) {
-        const p = document.createElement("p");
-        p.className = "word-meaning";
-        p.textContent = meaning || "";
-        wrapper.appendChild(p);
+        const p = document.createElement("p"); p.className = "word-meaning"; p.textContent = meaning || ""; wrapper.appendChild(p);
       }
       el.wordBank.appendChild(wrapper);
     });
   },
 
-  // 紙吹雪の演出
   triggerConfetti: (mode) => {
     el.confetti.innerHTML = "";
     el.confetti.className = mode === "grand" ? "confetti confetti--grand" : "confetti";
@@ -241,407 +210,178 @@ const Renderer = {
       p.style.setProperty("--x", `${Math.random() * 100}%`);
       p.style.setProperty("--delay", `${Math.random() * 0.4}s`);
       p.style.setProperty("--duration", `${1 + Math.random() * 0.8}s`);
-      p.style.setProperty("--size", `${6 + Math.random() * 6}px`);
-      p.style.setProperty("--rotate", `${Math.random() * 360}deg`);
       p.style.setProperty("--hue", `${Math.random() * 360}`);
       el.confetti.appendChild(p);
     }
-    setTimeout(() => { el.confetti.innerHTML = ""; }, mode === "grand" ? 2400 : 1600);
+    setTimeout(() => { el.confetti.innerHTML = ""; }, 2500);
   }
 };
 
 /**
- * 7. QUIZ LOGIC (クイズの核となる論理)
+ * 7. LOGIC (判定・解析)
  */
 const Logic = {
   currentLesson: () => state.lessons[state.currentSet[state.setIndex]],
-
   canAddWord: (word) => {
     const lesson = Logic.currentLesson();
-    const selectedCount = Utils.countOccurrences(state.slotWords.flat())[word] ?? 0;
-    const totalCount = lesson.words.filter(w => w === word).length;
-    return selectedCount < totalCount;
+    const current = Utils.countOccurrences(state.slotWords.flat())[word] ?? 0;
+    const total = lesson.words.filter(w => w === word).length;
+    return current < total;
   },
-
   getDisplayPieces: (lesson) => {
-    const pieces = lesson.words.map((w, i) => ({ word: w, meaning: lesson.wordMeanings?.[i] || "" }));
-    if (!state.ui.showWordHints) return Utils.shuffle(pieces);
-    
-    // フレーズ（熟語）のグループ化ロジック
-    const groups = [...(lesson.phraseGroups ?? [])].sort((a, b) => a.start - b.start);
-    if (groups.length === 0) return Utils.shuffle(pieces);
-
-    const occupied = new Set();
-    const chunks = [];
-    groups.forEach(g => {
+    const pieces = lesson.words.map((w, i) => ({ word: w, meaning: lesson.wordMeanings[i] || "" }));
+    if (!state.ui.showWordHints || !lesson.phraseGroups.length) return Utils.shuffle(pieces);
+    const occupied = new Set(); const chunks = [];
+    lesson.phraseGroups.forEach(g => {
       const range = Array.from({ length: g.end - g.start + 1 }, (_, o) => g.start + o);
-      if (range.some(idx => occupied.has(idx))) return;
-      chunks.push(range.map(idx => { occupied.add(idx); return pieces[idx]; }));
+      if (!range.some(idx => occupied.has(idx))) {
+        chunks.push(range.map(idx => { occupied.add(idx); return pieces[idx]; }));
+      }
     });
     pieces.forEach((p, i) => { if (!occupied.has(i)) chunks.push([p]); });
     return Utils.shuffle(chunks).flat();
   },
-
   checkAnswer: () => {
     const lesson = Logic.currentLesson();
     const arranged = state.slotWords.flat();
-    
-    // 判定ロジックの整理
     const isCorrect = arranged.length === lesson.words.length &&
-      lesson.slots.every((expected, i) => {
-        const actual = state.slotWords[i] || [];
-        return actual.length === expected.length && 
-               expected.every((w, wi) => Utils.normalize(w) === Utils.normalize(actual[wi]));
+      lesson.slots.every((exp, i) => {
+        const act = state.slotWords[i] || [];
+        return act.length === exp.length && exp.every((w, wi) => Utils.normalize(w) === Utils.normalize(act[wi]));
       }) &&
       lesson.words.every((w, i) => Utils.normalize(w) === Utils.normalize(arranged[i]));
 
-    if (!state.ui.hintUsed || !isCorrect) Logic.updateStats(lesson.id, isCorrect);
-
+    const stats = Storage.loadStats();
+    const entry = stats[lesson.id] ?? { correct: 0, wrong: 0, attempts: 0 };
+    entry.attempts++;
     if (isCorrect) {
-      el.feedback.textContent = "正解！次の問題に進みます。";
-      el.feedback.className = "feedback success";
-      state.setScore++;
-      Renderer.triggerConfetti("normal");
+      entry.correct++; entry.wrong = 0;
+      el.feedback.textContent = "正解！"; el.feedback.className = "feedback success";
+      state.setScore++; Renderer.triggerConfetti("normal");
       setTimeout(Actions.advanceLesson, 1200);
     } else {
-      el.feedback.textContent = "間違いです。正解例を確認して次の問題へ進んでね。";
-      el.feedback.className = "feedback error";
-      state.ui.showWordHints = true;
-      state.ui.hintUsed = true;
-      el.answerExample.hidden = false;
-      // 正解例の描画などはActionsで実行
+      entry.wrong++;
+      el.feedback.textContent = "間違いです。"; el.feedback.className = "feedback error";
+      state.ui.showWordHints = true; state.ui.hintUsed = true;
       Actions.showCorrectAnswer(lesson);
     }
-    Actions.updateUIProgress();
+    stats[lesson.id] = entry; Storage.saveStats(stats);
+    Actions.updateStatus();
   },
-
-  updateStats: (id, isCorrect) => {
+  pickSet: () => {
     const stats = Storage.loadStats();
-    const entry = stats[id] ?? { correct: 0, wrong: 0, attempts: 0 };
-    entry.attempts++;
-    if (isCorrect) { entry.correct++; entry.wrong = 0; } else { entry.wrong++; }
-    stats[id] = entry;
-    Storage.saveStats(stats);
+    const eligible = state.lessons.filter(l => state.filters.levels.has(l.level) && state.filters.grades.has(l.grade) && (state.filters.grammar.size === 0 || state.filters.grammar.has(l.grammar)));
+    return Utils.shuffle(eligible).sort((a, b) => (stats[b.id]?.wrong || 0) - (stats[a.id]?.wrong || 0)).slice(0, CONFIG.SET_SIZE).map(l => state.lessons.indexOf(l));
   }
 };
+
 /**
- * 8. UI ACTIONS (画面遷移・ボタン動作)
+ * 8. ACTIONS (操作)
  */
 const Actions = {
-  // 問題のセットアップ
   loadLesson: () => {
     const lesson = Logic.currentLesson();
     state.slotWords = Array.from({ length: CONFIG.SLOT_LABELS.length }, () => []);
-    state.ui.hintUsed = false;
-    state.ui.showWordHints = false;
-    
-    el.wordHintPanel.hidden = true;
-    el.toggleWordHintsBtn.textContent = "ヒントを表示";
+    state.ui.hintUsed = false; state.ui.showWordHints = false;
     el.japaneseHint.textContent = lesson.japanese;
-    el.feedback.textContent = "";
-    el.feedback.className = "feedback";
-    el.answerExample.hidden = true;
-    el.nextBtn.hidden = true;
-    el.checkBtn.disabled = false;
-    el.resetBtn.disabled = false;
-    el.setSummary.hidden = true;
-
+    el.feedback.textContent = ""; el.answerExample.hidden = true; el.nextBtn.hidden = true;
+    el.checkBtn.disabled = false; el.resetBtn.disabled = false; el.wordHintPanel.hidden = true;
     Renderer.renderSlots();
     Renderer.renderWordBank(Logic.getDisplayPieces(lesson));
-    Actions.updateUIProgress();
-    Actions.renderWordHints(lesson);
+    Actions.updateProgress();
+    el.wordHintText.textContent = lesson.hintText || "";
   },
-
-  // 次の問題へ進む / 終了判定
   advanceLesson: () => {
     state.setIndex++;
     if (state.setIndex >= state.currentSet.length) {
-      Actions.finishSet();
-    } else {
-      Actions.loadLesson();
-    }
+      el.setSummary.hidden = false; el.setScoreText.textContent = `${state.setScore} / ${state.currentSet.length} 正解`;
+      if (state.setScore === state.currentSet.length) Renderer.triggerConfetti("grand");
+    } else { Actions.loadLesson(); }
   },
-
-  // 正解例の表示（間違い時）
   showCorrectAnswer: (lesson) => {
     el.answerSlots.innerHTML = "";
-    CONFIG.SLOT_LABELS.forEach((label, i) => {
-      const card = Renderer.createSlotCard({
-        label,
-        words: lesson.slots[i] ?? [],
-        index: i,
-        droppable: false
-      });
-      el.answerSlots.appendChild(card);
-    });
-    el.nextBtn.hidden = false;
-    el.checkBtn.disabled = true;
-    el.resetBtn.disabled = true;
+    CONFIG.SLOT_LABELS.forEach((label, i) => el.answerSlots.appendChild(Renderer.createSlotCard({ label, words: lesson.slots[i] || [], index: i, droppable: false })));
+    el.answerExample.hidden = false; el.nextBtn.hidden = false; el.checkBtn.disabled = true; el.resetBtn.disabled = true;
     Renderer.renderWordBank(Logic.getDisplayPieces(lesson));
   },
-
-  // セット終了時
-  finishSet: () => {
-    el.setSummary.hidden = false;
-    el.setScoreText.textContent = `${state.setScore} / ${state.currentSet.length} 正解`;
-    el.setMessage.textContent = state.setScore === state.currentSet.length 
-      ? "全問正解！この調子で次の10問へ進もう。" 
-      : "おつかれさま！次の10問で復習しよう。";
-    el.checkBtn.disabled = true;
-    el.resetBtn.disabled = true;
-    if (state.setScore === state.currentSet.length) Renderer.triggerConfetti("grand");
+  updateProgress: () => {
+    const p = ((state.setIndex + 1) / state.currentSet.length) * 100;
+    el.progressText.textContent = `${state.setIndex + 1} / ${state.currentSet.length} 問目`;
+    el.progressValue.style.width = `${p}%`;
   },
-
-  // 進捗バーの更新
-  updateUIProgress: () => {
-    const current = state.setIndex + 1;
-    const total = state.currentSet.length;
-    el.progressText.textContent = `${current} / ${total} 問目`;
-    el.progressValue.style.width = `${(current / total) * 100}%`;
-  },
-
-  // ヒントテキストの描画
-  renderWordHints: (lesson) => {
-    const text = lesson.hintText || CONFIG.DEFAULT_HINT_TEXT || "";
-    el.wordHintText.textContent = text;
-    return text.trim().length > 0;
-  }
-};
-
-/**
- * 9. DATA LOADING (外部データ取得)
- */
-const DataLoader = {
-  loadFromSheet: async (url) => {
-    const csvUrl = DataLoader.buildCsvUrl(url);
-    if (!csvUrl) return;
-    try {
-      const response = await fetch(csvUrl);
-      const text = await response.text();
-      const rows = Utils.parseCsv(text);
-      if (rows.length === 0) return;
-
-      // ヘッダー解析とデータ変換（元のロジックを維持）
-      // ... (中略: ヘッダーマップの作成とビルド処理) ...
-      // 簡略化のため、元のbuildHeaderMap/buildLessonFromRowと同等の処理を実行
-      const headerRow = rows[0];
-      const lessons = rows.slice(1).map(row => {
-        // ここに以前の buildLessonFromRow と同等のパース処理が入ります
-        // 実装の詳細は元のコードをベースにstate.lessonsへ格納
-        return Logic.parseLessonRow(row, headerRow); 
-      }).filter(l => l !== null);
-
-      state.lessons = lessons;
-      Actions.initFilters(); // フィルターの初期化
-    } catch (e) { console.warn("Sheet load failed.", e); }
-  },
-
-  buildCsvUrl: (url) => {
-    if (url.includes("gviz") || url.includes("export?format=csv")) return url;
-    const match = url.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if (!match) return null;
-    const gidMatch = url.match(/gid=([0-9]+)/);
-    return `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&gid=${gidMatch ? gidMatch[1] : "0"}`;
-  }
-};
-
-/**
- * 10. INITIALIZATION & EVENTS (起動とイベント設定)
- */
-const initializeApp = () => {
-  // イベントリスナーの一括登録
-  el.checkBtn.addEventListener("click", Logic.checkAnswer);
-  el.resetBtn.addEventListener("click", () => Actions.loadLesson());
-  el.nextBtn.addEventListener("click", Actions.advanceLesson);
-  el.startSetBtn.addEventListener("click", () => {
-    // 問題の抽出ロジック（pickSetLessons）を実行し、state.currentSetを更新して開始
-    state.currentSet = Logic.pickSet(); 
-    if (state.currentSet.length > 0) {
-      state.setIndex = 0; state.setScore = 0;
-      el.quizScreen.hidden = false; el.homeScreen.hidden = true;
-      Actions.loadLesson();
-    }
-  });
-  el.homeBtn.addEventListener("click", () => {
-    el.quizScreen.hidden = true; el.homeScreen.hidden = false;
-  });
-
-  // スプレッドシート読み込み開始
-  DataLoader.loadFromSheet(CONFIG.DEFAULT_SHEET_URL);
-};
-
-// 実行
-initializeApp();
-/**
- * 8. QUIZ LOGIC (追加：データ解析・抽出ロジック)
- */
-Object.assign(Logic, {
-  // 元の buildHeaderMap と同等：列のタイトルからインデックスを特定
-  buildHeaderMap: (headerRow) => {
-    const normalized = headerRow.map(cell => cell.trim());
-    const findIdx = (label) => normalized.findIndex(cell => cell === label);
-    
-    const slotIndices = CONFIG.SLOT_LABELS.map(label => findIdx(label));
-    const hintIdx = ["ヒント", "説明", "単語意味", "Meaning"].map(findIdx).find(i => i >= 0);
-    const wordMeaningIdx = ["単語訳", "単語ごとの意味", "Word Gloss"].map(findIdx).find(i => i >= 0);
-
-    return {
-      japaneseIdx: findIdx("日本文"),
-      englishIdx: findIdx("英文"),
-      idIdx: findIdx("ID"),
-      gradeIdx: findIdx("学年"),
-      grammarIdx: findIdx("文法項目"),
-      levelIdx: findIdx("難易度"),
-      hintIdx,
-      wordMeaningIdx,
-      slotIndices,
-      hasHeader: findIdx("日本文") >= 0
-    };
-  },
-
-  // 元の buildLessonFromRow と同等：1行のデータをLessonオブジェクトに変換
-  parseLessonRow: (row, headerMap) => {
-    const japanese = (row[headerMap.japaneseIdx] ?? "").trim();
-    if (!japanese) return null;
-
-    const english = (row[headerMap.englishIdx] ?? "").trim();
-    const level = parseInt(row[headerMap.levelIdx]) || 1;
-    
-    // スロットデータの構築
-    const slots = headerMap.slotIndices.map(idx => {
-      const val = (row[idx] ?? "").trim();
-      return val ? val.split(/\s+/) : [];
-    });
-
-    const words = english ? english.split(/\s+/) : slots.flat().filter(Boolean);
-    const hintCell = (row[headerMap.hintIdx] ?? "").trim();
-    const wordMeaningCell = (row[headerMap.wordMeaningIdx] ?? hintCell).trim();
-
-    return {
-      id: (row[headerMap.idIdx] ?? "").trim() || `ID_${Math.random().toString(36).substr(2, 9)}`,
-      grade: (row[headerMap.gradeIdx] ?? "").trim(),
-      grammar: (row[headerMap.grammarIdx] ?? "").trim(),
-      japanese,
-      words,
-      slots,
-      hintText: hintCell,
-      wordMeanings: Logic.parseWordMeanings(wordMeaningCell, words),
-      phraseGroups: Logic.parsePhraseGroups(wordMeaningCell, words),
-      level
-    };
-  },
-
-  // 補助：単語ごとの意味をパース
-  parseWordMeanings: (cell, words) => {
-    if (!cell) return words.map(() => "");
-    const parts = cell.split(/[|｜]/).map(s => s.trim());
-    return words.map((_, i) => parts[i] || "");
-  },
-
-  // 補助：熟語（[take a bus]など）を特定
-  parsePhraseGroups: (cell, words) => {
-    const pattern = /\[([^\]]+)\]/g;
-    const matches = Array.from(cell.matchAll(pattern));
-    const groups = [];
-    const lowerWords = words.map(w => w.toLowerCase());
-
-    matches.forEach(m => {
-      const pWords = m[1].trim().split(/\s+/).map(w => w.toLowerCase());
-      for (let i = 0; i <= lowerWords.length - pWords.length; i++) {
-        if (pWords.every((pw, offset) => lowerWords[i + offset] === pw)) {
-          groups.push({ start: i, end: i + pWords.length - 1 });
-        }
-      }
-    });
-    return groups;
-  },
-
-  // 問題を10問選出するロジック（統計に基づいた優先順位）
-  pickSet: () => {
+  updateStatus: () => {
     const stats = Storage.loadStats();
-    const eligible = state.lessons.filter(l => 
-      state.filters.levels.has(l.level) &&
-      state.filters.grades.has(l.grade) &&
-      (state.filters.grammar.size === 0 || state.filters.grammar.has(l.grammar))
-    );
-
-    return Utils.shuffle(eligible)
-      .sort((a, b) => {
-        const sA = stats[a.id] ?? { wrong: 0, attempts: 0 };
-        const sB = stats[b.id] ?? { wrong: 0, attempts: 0 };
-        if (sB.wrong !== sA.wrong) return sB.wrong - sA.wrong; // 負け越し優先
-        return sA.attempts - sB.attempts; // 未着手優先
-      })
-      .slice(0, CONFIG.SET_SIZE)
-      .map(lesson => state.lessons.indexOf(lesson));
+    const filtered = state.lessons.filter(l => state.filters.levels.has(l.level) && state.filters.grades.has(l.grade));
+    const correctCount = filtered.filter(l => (stats[l.id]?.correct || 0) > 0).length;
+    const rate = filtered.length ? Math.round((correctCount / filtered.length) * 100) : 0;
+    el.levelProgress.innerHTML = `正解達成率: <strong>${rate}%</strong>`;
+    el.homeStatus.textContent = rate === 100 ? "全問正解済みです！" : "準備OK！";
   }
-});
+};
 
 /**
- * 9. DATA LOADING (完全版：データ取得フロー)
+ * 9. DATA LOADER
  */
 const DataLoader = {
-  loadFromSheet: async (url) => {
-    const csvUrl = DataLoader.buildCsvUrl(url);
-    if (!csvUrl) return;
+  load: async () => {
     try {
-      const response = await fetch(csvUrl);
-      const text = await response.text();
+      const res = await fetch(CONFIG.DEFAULT_SHEET_URL.replace(/\/edit.*$/, "/gviz/tq?tqx=out:csv&gid=863237441"));
+      const text = await res.text();
       const rows = Utils.parseCsv(text);
       if (rows.length < 2) return;
-
-      const headerMap = Logic.buildHeaderMap(rows[0]);
-      state.lessons = rows.slice(1)
-        .map(row => Logic.parseLessonRow(row, headerMap))
-        .filter(l => l !== null);
-
-      Actions.initFilters(); // フィルターUIを生成
-      Actions.updateHomeStatus(); // ホーム画面のメッセージを更新
-    } catch (e) { console.error("Sheet load failed.", e); }
-  },
-
-  buildCsvUrl: (url) => {
-    const match = url.match(/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if (!match) return null;
-    const gidMatch = url.match(/gid=([0-9]+)/);
-    const gid = gidMatch ? gidMatch[1] : "0";
-    return `https://docs.google.com/spreadsheets/d/${match[1]}/gviz/tq?tqx=out:csv&gid=${gid}`;
+      const h = rows[0].map(c => c.trim());
+      state.lessons = rows.slice(1).map(r => {
+        const english = (r[h.indexOf("英文")] || "").trim();
+        const words = english.split(/\s+/);
+        const hint = (r[h.indexOf("ヒント")] || "").trim();
+        return {
+          id: (r[h.indexOf("ID")] || "").trim(),
+          grade: (r[h.indexOf("学年")] || "").trim(),
+          grammar: (r[h.indexOf("文法項目")] || "").trim(),
+          japanese: (r[h.indexOf("日本文")] || "").trim(),
+          words,
+          level: parseInt(r[h.indexOf("難易度")]) || 1,
+          hintText: hint,
+          wordMeanings: (r[h.indexOf("単語訳")] || hint).split(/[|｜]/).map(s => s.trim()),
+          phraseGroups: Array.from(hint.matchAll(/\[([^\]]+)\]/g)).map(m => {
+            const p = m[1].split(/\s+/).map(w => w.toLowerCase());
+            const start = words.map(w => w.toLowerCase()).indexOf(p[0]);
+            return start > -1 ? { start, end: start + p.length - 1 } : null;
+          }).filter(g => g),
+          slots: CONFIG.SLOT_LABELS.map(l => (r[h.indexOf(l)] || "").trim() ? r[h.indexOf(l)].trim().split(/\s+/) : [])
+        };
+      }).filter(l => l.japanese);
+      
+      const grammars = Array.from(new Set(state.lessons.map(l => l.grammar).filter(Boolean)));
+      el.grammarFilters.innerHTML = "";
+      grammars.forEach(g => {
+        const lbl = document.createElement("label");
+        lbl.innerHTML = `<input type="checkbox" value="${g}" checked> <span>${g}</span>`;
+        lbl.querySelector("input").addEventListener("change", (e) => { e.target.checked ? state.filters.grammar.add(g) : state.filters.grammar.delete(g); Actions.updateStatus(); });
+        el.grammarFilters.appendChild(lbl);
+        state.filters.grammar.add(g);
+      });
+      Actions.updateStatus();
+    } catch (e) { console.error(e); }
   }
 };
 
 /**
- * 10. INITIALIZATION (追加：フィルター初期化などの補助)
+ * 10. INITIALIZE
  */
-Actions.initFilters = () => {
-  // 文法項目のリストを作成
-  const grammars = Array.from(new Set(state.lessons.map(l => l.grammar).filter(Boolean)));
-  state.filters.grammar = new Set(grammars);
-  
-  // 各フィルター（学年、文法、レベル）のチェックボックスを描画する処理をここに記述
-  // (元の renderGradeFilters 等を呼び出す)
-  // ... 
-};
+el.startSetBtn.addEventListener("click", () => {
+  state.currentSet = Logic.pickSet();
+  if (state.currentSet.length) { state.setIndex = 0; state.setScore = 0; el.quizScreen.hidden = false; el.homeScreen.hidden = true; Actions.loadLesson(); }
+});
+el.checkBtn.addEventListener("click", Logic.checkAnswer);
+el.resetBtn.addEventListener("click", Actions.loadLesson);
+el.nextBtn.addEventListener("click", Actions.advanceLesson);
+el.homeBtn.addEventListener("click", () => { el.quizScreen.hidden = true; el.homeScreen.hidden = false; });
+el.setNextBtn.addEventListener("click", () => el.startSetBtn.click());
+el.toggleWordHintsBtn.addEventListener("click", () => { 
+  state.ui.showWordHints = !state.ui.showWordHints; 
+  el.wordHintPanel.hidden = !state.ui.showWordHints;
+  Renderer.renderWordBank(Logic.getDisplayPieces(Logic.currentLesson())); 
+});
 
-// 最後にアプリを起動
-const initializeApp = () => {
-  el.checkBtn.addEventListener("click", Logic.checkAnswer);
-  el.resetBtn.addEventListener("click", () => Actions.loadLesson());
-  el.nextBtn.addEventListener("click", Actions.advanceLesson);
-  el.startSetBtn.addEventListener("click", () => {
-    state.currentSet = Logic.pickSet();
-    if (state.currentSet.length > 0) {
-      state.setIndex = 0; state.setScore = 0;
-      el.quizScreen.hidden = false; el.homeScreen.hidden = true;
-      Actions.loadLesson();
-    } else {
-      el.homeStatus.textContent = "条件に合う問題がありません。";
-    }
-  });
-  el.homeBtn.addEventListener("click", () => {
-    el.quizScreen.hidden = true; el.homeScreen.hidden = false;
-  });
-
-  DataLoader.loadFromSheet(CONFIG.DEFAULT_SHEET_URL);
-};
-
-initializeApp();
+DataLoader.load();
