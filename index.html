@@ -102,20 +102,48 @@ async function loadData() {
 }
 
 function setupFilters() {
+    // 保存されている設定を読み込む（なければ空オブジェクト）
+    const savedFilters = JSON.parse(localStorage.getItem('eng_v5_filter_settings')) || {};
+
     const types = { grade: 'filter-grade', cat: 'filter-cat', lv: 'filter-lv' };
     Object.keys(types).forEach(key => {
         const container = document.getElementById(types[key]);
         const items = [...new Set(database.map(d => d[key]))];
+        
+        container.innerHTML = ""; // 一度中身を空にする
         items.forEach(item => {
             const div = document.createElement('div');
             div.className = 'checkbox-item';
+            
+            // 保存された設定があるか確認。なければデフォルトで true (チェックあり)
+            const isChecked = savedFilters[key] ? savedFilters[key].includes(item) : true;
+            const checkedAttr = isChecked ? "checked" : "";
+
             const resetBtn = key === 'cat' ? `<button class="btn-mini-reset" onclick="resetCat('${item}')">リセット</button>` : "";
-            div.innerHTML = `<label><input type="checkbox" value="${item}" checked data-type="${key}"> ${item}</label>${resetBtn}`;
+            
+            // onchange="saveFilterSettings()" を追加
+            div.innerHTML = `
+                <label>
+                    <input type="checkbox" value="${item}" ${checkedAttr} data-type="${key}" onchange="saveFilterSettings()"> 
+                    ${item}
+                </label>
+                ${resetBtn}
+            `;
             container.appendChild(div);
         });
     });
 }
 
+// チェックボックスの状態を保存する関数
+function saveFilterSettings() {
+    const settings = {
+        grade: Array.from(document.querySelectorAll('input[data-type="grade"]:checked')).map(i => i.value),
+        cat: Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value),
+        lv: Array.from(document.querySelectorAll('input[data-type="lv"]:checked')).map(i => i.value)
+    };
+    localStorage.setItem('eng_v5_filter_settings', JSON.stringify(settings));
+}
+    
 function resetCat(name) {
     if(!confirm(`${name}の記録を消去しますか？`)) return;
     database.forEach(d => { if(d.cat === name) delete studyLogs[d.id]; });
