@@ -13,7 +13,6 @@
         .main-wrapper { width: 95%; max-width: 1400px; margin: 20px; display: flex; flex-direction: column; gap: 20px; }
         .card { background: var(--card); border-radius: 15px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
-        /* 進捗表示エリア */
         .progress-container { background: #eee; border-radius: 10px; height: 25px; width: 100%; margin: 10px 0; overflow: hidden; position: relative; }
         .progress-bar { background: var(--success); height: 100%; width: 0%; transition: width 0.3s ease; }
         .progress-text { position: absolute; width: 100%; text-align: center; line-height: 25px; font-size: 0.85rem; font-weight: bold; color: #333; }
@@ -32,6 +31,10 @@
         .slot { background: #fafafa; border: 2px dashed #bdc3c7; border-radius: 12px; min-height: 110px; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
         .slot-label { width: 100%; font-size: 0.8rem; color: #7f8c8d; text-align: center; margin-bottom: 8px; background: #eee; padding: 2px 0; border-radius: 4px; }
         
+        /* 模範解答用スタイル */
+        .model-answer-section { display: none; background: #fff3e0; border: 2px solid var(--hint); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
+        .model-answer-label { font-weight: bold; color: var(--hint); margin-bottom: 10px; text-align: center; }
+
         .piece-container { background: #dfe6e9; padding: 25px; border-radius: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; min-height: 100px; }
         .piece-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; }
         .piece { background: var(--accent); color: white; padding: 10px 18px; border-radius: 8px; cursor: grab; font-weight: bold; box-shadow: 0 4px 0 #2980b9; font-size: 1.1rem; user-select: none; }
@@ -43,6 +46,7 @@
         .btn-primary { background: var(--accent); color: white; }
         .btn-success { background: var(--success); color: white; width: 250px; }
         .btn-hint { background: var(--hint); color: white; }
+        .btn-next { background: var(--primary); color: white; display: none; }
         .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
         .btn-mini-reset { font-size: 0.7rem; padding: 2px 6px; border: 1px solid var(--error); color: var(--error); background: none; border-radius: 4px; cursor: pointer; }
         .btn-text { font-size: 0.75rem; color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
@@ -53,7 +57,6 @@
 <div class="main-wrapper">
     <div id="home-screen" class="card">
         <h1>英語語順トレーニング</h1>
-        
         <div style="margin-bottom: 20px;">
             <div style="display:flex; justify-content: space-between; align-items: flex-end;">
                 <span style="font-weight:bold; font-size:0.9rem;">現在の選択範囲の達成状況</span>
@@ -64,28 +67,14 @@
                 <div id="main-progress-text" class="progress-text">0%</div>
             </div>
         </div>
-
         <div class="filter-section">
+            <div class="filter-group"><div class="group-header"><h3>学年</h3></div><div id="filter-grade" class="checkbox-list"></div></div>
             <div class="filter-group">
-                <div class="group-header"><h3>学年</h3></div>
-                <div id="filter-grade" class="checkbox-list"></div>
-            </div>
-            <div class="filter-group">
-                <div class="group-header">
-                    <h3>文法項目</h3>
-                    <div>
-                        <button class="btn-text" onclick="toggleAll('cat', true)">全選択</button>
-                        <button class="btn-text" onclick="toggleAll('cat', false)">全解除</button>
-                    </div>
-                </div>
+                <div class="group-header"><h3>文法項目</h3><div><button class="btn-text" onclick="toggleAll('cat', true)">全選択</button><button class="btn-text" onclick="toggleAll('cat', false)">全解除</button></div></div>
                 <div id="filter-cat" class="checkbox-list"></div>
             </div>
-            <div class="filter-group">
-                <div class="group-header"><h3>レベル</h3></div>
-                <div id="filter-lv" class="checkbox-list"></div>
-            </div>
+            <div class="filter-group"><div class="group-header"><h3>レベル</h3></div><div id="filter-lv" class="checkbox-list"></div></div>
         </div>
-
         <div class="action-bar">
             <button class="btn btn-primary" onclick="startLesson()">10問学習開始</button>
             <button class="btn btn-outline" onclick="exportData()">記録保存</button>
@@ -99,7 +88,23 @@
             <div id="quiz-counter" style="font-weight:bold;">1 / 10</div>
             <button class="btn btn-hint" id="hint-btn" onclick="applyHint()">ヒント</button>
         </div>
+
+        <div id="feedback" style="text-align:center; font-size:1.8rem; font-weight:bold; height:40px;"></div>
+
+        <div id="model-answer-section" class="model-answer-section">
+            <div class="model-answer-label">【模範解答】</div>
+            <div class="slot-container" id="model-drop-area">
+                <div class="slot"><div class="slot-label">⓪</div></div>
+                <div class="slot"><div class="slot-label">①</div></div>
+                <div class="slot"><div class="slot-label">②</div></div>
+                <div class="slot"><div class="slot-label">③</div></div>
+                <div class="slot"><div class="slot-label">④</div></div>
+            </div>
+        </div>
+
         <div class="japanese-box" id="japanese-text"></div>
+
+        <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;" id="my-answer-label">【あなたの解答】</div>
         <div class="slot-container" id="drop-area">
             <div class="slot" data-col="G"><div class="slot-label">⓪疑問文のとき</div></div>
             <div class="slot" data-col="H"><div class="slot-label">①だれは/何は</div></div>
@@ -107,11 +112,13 @@
             <div class="slot" data-col="J"><div class="slot-label">③何を/何</div></div>
             <div class="slot" data-col="K"><div class="slot-label">④いつ・どこで…</div></div>
         </div>
+
         <div class="piece-container" id="piece-area"></div>
+
         <div class="action-bar">
-            <button class="btn btn-success" onclick="checkAnswer()">答え合わせ</button>
+            <button id="check-btn" class="btn btn-success" onclick="checkAnswer()">答え合わせ</button>
+            <button id="next-btn" class="btn btn-next" onclick="goToNextQuestion()">次の問題へ ▶</button>
         </div>
-        <div id="feedback" style="text-align:center; font-size:1.8rem; font-weight:bold; height:40px; margin-top:10px;"></div>
     </div>
 </div>
 
@@ -129,38 +136,28 @@ async function loadData() {
         const res = await fetch(GAS_URL);
         database = await res.json();
         setupFilters();
-        updateProgress(); // 初回表示時の計算
-    } catch (e) { alert("データ読み取り失敗。GAS設定を確認してください。"); }
+        updateProgress();
+    } catch (e) { alert("データ読み込み失敗。"); }
 }
 
 function setupFilters() {
     const savedFilters = JSON.parse(localStorage.getItem('eng_v5_filter_settings')) || {};
     const types = { grade: 'filter-grade', cat: 'filter-cat', lv: 'filter-lv' };
-    
     Object.keys(types).forEach(key => {
         const container = document.getElementById(types[key]);
         const items = [...new Set(database.map(d => String(d[key] || "").trim()))].filter(v => v !== "");
-        
         container.innerHTML = ""; 
         items.forEach(item => {
             const div = document.createElement('div');
             div.className = 'checkbox-item';
             const isChecked = savedFilters[key] ? savedFilters[key].includes(item) : true;
-            const checkedAttr = isChecked ? "checked" : "";
-            const resetBtn = key === 'cat' ? `<button class="btn-mini-reset" onclick="resetCat('${item}')">リセット</button>` : "";
-            
-            div.innerHTML = `<label><input type="checkbox" value="${item}" ${checkedAttr} data-type="${key}" onchange="onFilterChange()"> ${item}</label>${resetBtn}`;
+            div.innerHTML = `<label><input type="checkbox" value="${item}" ${isChecked ? "checked" : ""} data-type="${key}" onchange="onFilterChange()"> ${item}</label>`;
             container.appendChild(div);
         });
     });
 }
 
-// フィルター変更時の共通処理
-function onFilterChange() {
-    saveFilterSettings();
-    updateProgress();
-}
-
+function onFilterChange() { saveFilterSettings(); updateProgress(); }
 function saveFilterSettings() {
     const settings = {
         grade: Array.from(document.querySelectorAll('input[data-type="grade"]:checked')).map(i => i.value),
@@ -170,61 +167,27 @@ function saveFilterSettings() {
     localStorage.setItem('eng_v5_filter_settings', JSON.stringify(settings));
 }
 
-// 進捗状況をリアルタイム計算
 function updateProgress() {
-    const selectedGrade = Array.from(document.querySelectorAll('input[data-type="grade"]:checked')).map(i => i.value);
-    const selectedCat = Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value);
-    const selectedLv = Array.from(document.querySelectorAll('input[data-type="lv"]:checked')).map(i => i.value);
-
-    const pool = database.filter(d => 
-        selectedGrade.includes(String(d.grade || "").trim()) && 
-        selectedCat.includes(String(d.cat || "").trim()) && 
-        selectedLv.includes(String(d.lv || "").trim())
-    );
-
-    if (pool.length === 0) {
-        document.getElementById('main-progress-bar').style.width = "0%";
-        document.getElementById('main-progress-text').innerText = "0%";
-        document.getElementById('progress-stats').innerText = "0 / 0 問完了";
-        return;
-    }
-
-    // 2回連続正解（streak >= 2）を完了とみなす
+    const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
+    const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
+    if (!pool.length) return;
     const completedCount = pool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
     const percent = Math.floor((completedCount / pool.length) * 100);
-
     document.getElementById('main-progress-bar').style.width = `${percent}%`;
     document.getElementById('main-progress-text').innerText = `${percent}%`;
     document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了`;
 }
 
-// 全選択・全解除
 function toggleAll(type, isCheck) {
-    const boxes = document.querySelectorAll(`input[data-type="${type}"]`);
-    boxes.forEach(b => b.checked = isCheck);
+    document.querySelectorAll(`input[data-type="${type}"]`).forEach(b => b.checked = isCheck);
     onFilterChange();
 }
 
 function startLesson() {
-    const selectedGrade = Array.from(document.querySelectorAll('input[data-type="grade"]:checked')).map(i => i.value);
-    const selectedCat = Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value);
-    const selectedLv = Array.from(document.querySelectorAll('input[data-type="lv"]:checked')).map(i => i.value);
-
-    const pool = database.filter(d => 
-        selectedGrade.includes(String(d.grade || "").trim()) && 
-        selectedCat.includes(String(d.cat || "").trim()) && 
-        selectedLv.includes(String(d.lv || "").trim())
-    );
-
-    if(!pool.length) return alert("範囲を選択してください。");
-
-    // 未習得・苦手優先ソート
-    pool.sort((a,b) => {
-        const logA = studyLogs[a.id] || { streak: 0, lastFail: true };
-        const logB = studyLogs[b.id] || { streak: 0, lastFail: true };
-        return logA.lastFail !== logB.lastFail ? logB.lastFail - logA.lastFail : logA.streak - logB.streak;
-    });
-
+    const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
+    const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
+    if(!pool.length) return alert("範囲を選択してください");
+    pool.sort((a,b) => (studyLogs[a.id]?.streak||0) - (studyLogs[b.id]?.streak||0));
     currentSession = pool.slice(0,10).sort(()=>Math.random()-0.5);
     currentIndex = 0;
     document.getElementById('home-screen').style.display='none';
@@ -238,32 +201,32 @@ function showQuestion() {
     document.getElementById('quiz-counter').innerText = `${currentIndex + 1} / ${currentSession.length}`;
     document.getElementById('japanese-text').innerText = q.E;
     document.getElementById('feedback').innerText = "";
+    document.getElementById('model-answer-section').style.display = "none";
+    document.getElementById('next-btn').style.display = "none";
+    document.getElementById('check-btn').style.display = "block";
     document.getElementById('hint-btn').style.display = "block";
     
-    document.querySelectorAll('.slot').forEach(s => {
+    document.querySelectorAll('#drop-area .slot').forEach(s => {
         const label = s.querySelector('.slot-label');
         s.innerHTML = ""; s.appendChild(label);
     });
-
     const area = document.getElementById('piece-area');
     area.innerHTML = "";
     let words = [];
-    if(q.D) {
-        q.D.split(' ').forEach(item => {
-            const [phrase] = item.split(':');
-            phrase.split('_').forEach(w => words.push(w));
-        });
-    }
+    q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => words.push(w)); });
     words.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
 }
 
-function createPiece(text, target, hasHint, hintText = "") {
+function createPiece(text, target, hasHint, hintText = "", isDraggable = true) {
     const wrapper = document.createElement('div');
     wrapper.className = 'piece-wrapper';
     const p = document.createElement('div');
-    p.className = 'piece'; p.innerText = text; p.draggable = true;
-    p.ondragstart = (e) => { e.dataTransfer.setData('text', text); p.classList.add('dragging'); };
-    p.ondragend = () => p.classList.remove('dragging');
+    p.className = 'piece'; p.innerText = text; 
+    if(isDraggable) {
+        p.draggable = true;
+        p.ondragstart = (e) => { e.dataTransfer.setData('text', text); p.classList.add('dragging'); };
+        p.ondragend = () => p.classList.remove('dragging');
+    }
     wrapper.appendChild(p);
     if(hasHint && hintText) {
         const h = document.createElement('div');
@@ -271,23 +234,6 @@ function createPiece(text, target, hasHint, hintText = "") {
         wrapper.appendChild(h);
     }
     target.appendChild(wrapper);
-}
-
-function applyHint() {
-    isHintUsed = true;
-    const q = currentSession[currentIndex];
-    const area = document.getElementById('piece-area');
-    document.querySelectorAll('.slot').forEach(s => {
-        const label = s.querySelector('.slot-label');
-        s.innerHTML = ""; s.appendChild(label);
-    });
-    area.innerHTML = "";
-    const pieces = q.D.split(' ').map(item => {
-        const [phrase, trans] = item.split(':');
-        return { text: phrase.replace(/_/g, ' '), hint: trans || "" };
-    });
-    pieces.sort(()=>Math.random()-0.5).forEach(p => createPiece(p.text, area, true, p.hint));
-    document.getElementById('hint-btn').style.display = "none";
 }
 
 document.querySelectorAll('.slot, .piece-container').forEach(zone => {
@@ -301,36 +247,83 @@ document.querySelectorAll('.slot, .piece-container').forEach(zone => {
 
 function checkAnswer() {
     const q = currentSession[currentIndex];
-    const slots = document.querySelectorAll('.slot');
-    const mapping = { G:0, H:1, I:2, J:3, K:4 };
+    const slots = document.querySelectorAll('#drop-area .slot');
+    const cols = ['G', 'H', 'I', 'J', 'K'];
     let correct = true;
 
-    Object.entries(mapping).forEach(([col, idx]) => {
-        const slotText = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim();
-        const targetText = String(q[col] || "").trim();
-        if (slotText !== targetText) correct = false;
+    cols.forEach((col, idx) => {
+        const ans = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim();
+        if (ans !== String(q[col]||"").trim()) correct = false;
     });
 
     const fb = document.getElementById('feedback');
     if (!studyLogs[q.id]) studyLogs[q.id] = { streak: 0, lastFail: false };
 
     if (correct) {
-        fb.innerText = isHintUsed ? "⭕ 正解！(ヒント使用)" : "⭕ 正解！";
-        fb.style.color = "var(--success)";
-        if (!isHintUsed) {
-            studyLogs[q.id].streak++;
-            studyLogs[q.id].lastFail = false;
-        }
+        fb.innerText = "⭕ 正解！"; fb.style.color = "var(--success)";
+        if (!isHintUsed) { studyLogs[q.id].streak++; studyLogs[q.id].lastFail = false; }
+        localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
+        setTimeout(goToNextQuestion, 1200);
     } else {
         fb.innerText = "❌ 不正解"; fb.style.color = "var(--error)";
         studyLogs[q.id].streak = 0; studyLogs[q.id].lastFail = true;
+        localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
+        showModelAnswer(q); // 模範解答を表示
     }
+}
 
-    localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-    setTimeout(() => {
-        if(++currentIndex < currentSession.length) showQuestion();
-        else { alert("10問終了！"); location.reload(); }
-    }, 1800);
+// 模範解答を生成して表示する
+function showModelAnswer(q) {
+    const modelArea = document.querySelectorAll('#model-drop-area .slot');
+    const cols = ['G', 'H', 'I', 'J', 'K'];
+    
+    // スプレッドシートのD列からヒント情報を辞書化
+    const hintMap = {};
+    q.D.split(' ').forEach(item => {
+        const [phrase, hint] = item.split(':');
+        hintMap[phrase.replace(/_/g, ' ')] = hint || "";
+    });
+
+    cols.forEach((col, idx) => {
+        const label = modelArea[idx].querySelector('.slot-label');
+        modelArea[idx].innerHTML = ""; 
+        modelArea[idx].appendChild(label);
+        
+        const text = String(q[col]||"").trim();
+        if (text) {
+            // 模範解答には日本語ヒント付きのピースを表示
+            createPiece(text, modelArea[idx], true, hintMap[text], false);
+        }
+    });
+
+    document.getElementById('model-answer-section').style.display = "block";
+    document.getElementById('check-btn').style.display = "none";
+    document.getElementById('next-btn').style.display = "block";
+    document.getElementById('hint-btn').style.display = "none";
+    
+    // 模範解答が見えるように上部へスクロール
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goToNextQuestion() {
+    if(++currentIndex < currentSession.length) showQuestion();
+    else { alert("10問終了！"); location.reload(); }
+}
+
+function applyHint() {
+    isHintUsed = true;
+    const q = currentSession[currentIndex];
+    const area = document.getElementById('piece-area');
+    document.querySelectorAll('#drop-area .slot').forEach(s => {
+        const label = s.querySelector('.slot-label');
+        s.innerHTML = ""; s.appendChild(label);
+    });
+    area.innerHTML = "";
+    q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => {
+        const [phrase, trans] = item.split(':');
+        createPiece(phrase.replace(/_/g, ' '), area, true, trans || "");
+    });
+    document.getElementById('hint-btn').style.display = "none";
 }
 
 function exportData() {
@@ -350,14 +343,6 @@ function importData() {
         reader.readAsText(e.target.files[0]);
     };
     input.click();
-}
-
-function resetCat(name) {
-    if(!confirm(`${name}の記録を消去しますか？`)) return;
-    database.forEach(d => { if(String(d.cat).trim() === name) delete studyLogs[d.id]; });
-    localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-    updateProgress();
-    alert("リセット完了");
 }
 
 window.onload = loadData;
