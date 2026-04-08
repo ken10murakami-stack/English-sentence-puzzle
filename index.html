@@ -101,40 +101,32 @@ async function loadData() {
     } catch (e) { alert("データの読み込みに失敗しました。GASのURLを確認してください。"); }
 }
 
+// フィルターの生成と復元
 function setupFilters() {
-    // 保存されている設定を読み込む（なければ空オブジェクト）
     const savedFilters = JSON.parse(localStorage.getItem('eng_v5_filter_settings')) || {};
-
     const types = { grade: 'filter-grade', cat: 'filter-cat', lv: 'filter-lv' };
+    
     Object.keys(types).forEach(key => {
         const container = document.getElementById(types[key]);
         const items = [...new Set(database.map(d => d[key]))];
         
-        container.innerHTML = ""; // 一度中身を空にする
+        container.innerHTML = ""; 
         items.forEach(item => {
             const div = document.createElement('div');
             div.className = 'checkbox-item';
             
-            // 保存された設定があるか確認。なければデフォルトで true (チェックあり)
+            // 保存された設定を反映。データがない場合はデフォルトチェックON
             const isChecked = savedFilters[key] ? savedFilters[key].includes(item) : true;
             const checkedAttr = isChecked ? "checked" : "";
 
             const resetBtn = key === 'cat' ? `<button class="btn-mini-reset" onclick="resetCat('${item}')">リセット</button>` : "";
-            
-            // onchange="saveFilterSettings()" を追加
-            div.innerHTML = `
-                <label>
-                    <input type="checkbox" value="${item}" ${checkedAttr} data-type="${key}" onchange="saveFilterSettings()"> 
-                    ${item}
-                </label>
-                ${resetBtn}
-            `;
+            div.innerHTML = `<label><input type="checkbox" value="${item}" ${checkedAttr} data-type="${key}" onchange="saveFilterSettings()"> ${item}</label>${resetBtn}`;
             container.appendChild(div);
         });
     });
 }
 
-// チェックボックスの状態を保存する関数
+// フィルター状態の保存
 function saveFilterSettings() {
     const settings = {
         grade: Array.from(document.querySelectorAll('input[data-type="grade"]:checked')).map(i => i.value),
@@ -143,7 +135,7 @@ function saveFilterSettings() {
     };
     localStorage.setItem('eng_v5_filter_settings', JSON.stringify(settings));
 }
-    
+
 function resetCat(name) {
     if(!confirm(`${name}の記録を消去しますか？`)) return;
     database.forEach(d => { if(d.cat === name) delete studyLogs[d.id]; });
@@ -177,13 +169,11 @@ function showQuestion() {
     document.getElementById('feedback').innerText = "";
     document.getElementById('hint-btn').style.display = "block";
     
-    // スロット回収
     document.querySelectorAll('.slot').forEach(s => {
         const label = s.querySelector('.slot-label');
         s.innerHTML = ""; s.appendChild(label);
     });
 
-    // 初期表示：全ての単語をバラバラにしてランダム配置
     const area = document.getElementById('piece-area');
     area.innerHTML = "";
     let words = [];
@@ -210,36 +200,29 @@ function createPiece(text, target, hasHint, hintText = "") {
     target.appendChild(wrapper);
 }
 
-// ヒント適用（合体・訳表示・再シャッフル）
 function applyHint() {
     isHintUsed = true;
     const q = currentSession[currentIndex];
     const area = document.getElementById('piece-area');
-    
-    // 現在の配置をリセット（スロット内も空にする）
     document.querySelectorAll('.slot').forEach(s => {
         const label = s.querySelector('.slot-label');
         s.innerHTML = ""; s.appendChild(label);
     });
     area.innerHTML = "";
-
-    // 熟語を合体させて再生成し、シャッフルして配置
     const pieces = q.D.split(' ').map(item => {
         const [phrase, trans] = item.split(':');
         return { text: phrase.replace(/_/g, ' '), hint: trans || "" };
     });
-    
     pieces.sort(()=>Math.random()-0.5).forEach(p => createPiece(p.text, area, true, p.hint));
     document.getElementById('hint-btn').style.display = "none";
 }
 
-// ドラッグ＆ドロップ
 document.querySelectorAll('.slot, .piece-container').forEach(zone => {
     zone.ondragover = (e) => e.preventDefault();
     zone.ondrop = (e) => {
         e.preventDefault();
         const dragging = document.querySelector('.dragging');
-        if (dragging) zone.appendChild(dragging.parentElement); // wrapperごと移動
+        if (dragging) zone.appendChild(dragging.parentElement);
     };
 });
 
