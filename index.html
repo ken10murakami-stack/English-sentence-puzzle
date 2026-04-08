@@ -31,7 +31,6 @@
         .slot { background: #fafafa; border: 2px dashed #bdc3c7; border-radius: 12px; min-height: 110px; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
         .slot-label { width: 100%; font-size: 0.8rem; color: #7f8c8d; text-align: center; margin-bottom: 8px; background: #eee; padding: 2px 0; border-radius: 4px; }
         
-        /* 模範解答用スタイル */
         .model-answer-section { display: none; background: #fff3e0; border: 2px solid var(--hint); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
         .model-answer-label { font-weight: bold; color: var(--hint); margin-bottom: 10px; text-align: center; }
 
@@ -103,18 +102,16 @@
         </div>
 
         <div class="japanese-box" id="japanese-text"></div>
-
         <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;" id="my-answer-label">【あなたの解答】</div>
         <div class="slot-container" id="drop-area">
-            <div class="slot" data-col="G"><div class="slot-label">⓪疑問文のとき</div></div>
-            <div class="slot" data-col="H"><div class="slot-label">①だれは/何は</div></div>
-            <div class="slot" data-col="I"><div class="slot-label">②どうする/=</div></div>
-            <div class="slot" data-col="J"><div class="slot-label">③何を/何</div></div>
-            <div class="slot" data-col="K"><div class="slot-label">④いつ・どこで…</div></div>
+            <div class="slot" data-col="G"><div class="slot-label">⓪</div></div>
+            <div class="slot" data-col="H"><div class="slot-label">①</div></div>
+            <div class="slot" data-col="I"><div class="slot-label">②</div></div>
+            <div class="slot" data-col="J"><div class="slot-label">③</div></div>
+            <div class="slot" data-col="K"><div class="slot-label">④</div></div>
         </div>
 
         <div class="piece-container" id="piece-area"></div>
-
         <div class="action-bar">
             <button id="check-btn" class="btn btn-success" onclick="checkAnswer()">答え合わせ</button>
             <button id="next-btn" class="btn btn-next" onclick="goToNextQuestion()">次の問題へ ▶</button>
@@ -252,8 +249,9 @@ function checkAnswer() {
     let correct = true;
 
     cols.forEach((col, idx) => {
-        const ans = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim();
-        if (ans !== String(q[col]||"").trim()) correct = false;
+        const ans = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim().toLowerCase();
+        const target = String(q[col]||"").trim().toLowerCase();
+        if (ans !== target) correct = false;
     });
 
     const fb = document.getElementById('feedback');
@@ -268,31 +266,45 @@ function checkAnswer() {
         fb.innerText = "❌ 不正解"; fb.style.color = "var(--error)";
         studyLogs[q.id].streak = 0; studyLogs[q.id].lastFail = true;
         localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-        showModelAnswer(q); // 模範解答を表示
+        showModelAnswer(q); 
     }
 }
 
-// 模範解答を生成して表示する
+// 【強化ポイント】ヒント生成ロジックと完全に同期
 function showModelAnswer(q) {
-    const modelArea = document.querySelectorAll('#model-drop-area .slot');
+    const modelSlots = document.querySelectorAll('#model-drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
     
-    // スプレッドシートのD列からヒント情報を辞書化
-    const hintMap = {};
-    q.D.split(' ').forEach(item => {
+    // D列の定義を解析（phrase: "am not", hint: "〜ではない"）
+    const hintPairs = q.D.split(' ').map(item => {
         const [phrase, hint] = item.split(':');
-        hintMap[phrase.replace(/_/g, ' ')] = hint || "";
+        return { 
+            text: phrase.replace(/_/g, ' ').trim(), 
+            hint: hint || "" 
+        };
     });
 
     cols.forEach((col, idx) => {
-        const label = modelArea[idx].querySelector('.slot-label');
-        modelArea[idx].innerHTML = ""; 
-        modelArea[idx].appendChild(label);
+        const label = modelSlots[idx].querySelector('.slot-label');
+        modelSlots[idx].innerHTML = ""; 
+        modelSlots[idx].appendChild(label);
         
-        const text = String(q[col]||"").trim();
-        if (text) {
-            // 模範解答には日本語ヒント付きのピースを表示
-            createPiece(text, modelArea[idx], true, hintMap[text], false);
+        const targetSentence = String(q[col]||"").trim();
+        if (targetSentence) {
+            // そのスロットの英文と一致するヒントペアを探す
+            // 大文字小文字を区別せず比較
+            const pair = hintPairs.find(p => p.text.toLowerCase() === targetSentence.toLowerCase());
+            
+            if (pair) {
+                // ペアが見つかれば、そのテキストとヒントでピースを作成
+                createPiece(pair.text, modelSlots[idx], true, pair.hint, false);
+            } else {
+                // 万が一見つからない場合は、単語にバラしてヒントを結合（バックアップ処理）
+                const fallbackHint = targetSentence.split(' ')
+                    .map(w => hintPairs.find(p => p.text.toLowerCase() === w.toLowerCase())?.hint || "")
+                    .filter(h => h).join('/');
+                createPiece(targetSentence, modelSlots[idx], true, fallbackHint, false);
+            }
         }
     });
 
@@ -300,8 +312,6 @@ function showModelAnswer(q) {
     document.getElementById('check-btn').style.display = "none";
     document.getElementById('next-btn').style.display = "block";
     document.getElementById('hint-btn').style.display = "none";
-    
-    // 模範解答が見えるように上部へスクロール
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
