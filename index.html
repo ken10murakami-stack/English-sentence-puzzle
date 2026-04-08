@@ -102,7 +102,7 @@
         </div>
 
         <div class="japanese-box" id="japanese-text"></div>
-        <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;" id="my-answer-label">【あなたの解答】</div>
+        <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;">【あなたの解答】</div>
         <div class="slot-container" id="drop-area">
             <div class="slot" data-col="G"><div class="slot-label">⓪</div></div>
             <div class="slot" data-col="H"><div class="slot-label">①</div></div>
@@ -209,9 +209,12 @@ function showQuestion() {
     });
     const area = document.getElementById('piece-area');
     area.innerHTML = "";
-    let words = [];
-    q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => words.push(w)); });
-    words.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
+    
+    // D列の定義通りにピースを生成（初期状態はヒントなし）
+    q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => {
+        const phrase = item.split(':')[0].replace(/_/g, ' ');
+        createPiece(phrase, area, false);
+    });
 }
 
 function createPiece(text, target, hasHint, hintText = "", isDraggable = true) {
@@ -270,13 +273,13 @@ function checkAnswer() {
     }
 }
 
-// 【強化ポイント】ヒント生成ロジックと完全に同期
+// 【重要修正】D列のピースをスロット順に並べるロジック
 function showModelAnswer(q) {
     const modelSlots = document.querySelectorAll('#model-drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
     
-    // D列の定義を解析（phrase: "am not", hint: "〜ではない"）
-    const hintPairs = q.D.split(' ').map(item => {
+    // 1. D列から「ヒント付きピース」のリストを作成
+    const allPieces = q.D.split(' ').map(item => {
         const [phrase, hint] = item.split(':');
         return { 
             text: phrase.replace(/_/g, ' ').trim(), 
@@ -284,28 +287,45 @@ function showModelAnswer(q) {
         };
     });
 
+    // 2. 未使用ピースの管理（スロットに配置したものをリストから消していく）
+    let remainingPieces = [...allPieces];
+
     cols.forEach((col, idx) => {
         const label = modelSlots[idx].querySelector('.slot-label');
         modelSlots[idx].innerHTML = ""; 
         modelSlots[idx].appendChild(label);
         
         const targetSentence = String(q[col]||"").trim();
-        if (targetSentence) {
-            // そのスロットの英文と一致するヒントペアを探す
-            // 大文字小文字を区別せず比較
-            const pair = hintPairs.find(p => p.text.toLowerCase() === targetSentence.toLowerCase());
-            
-            if (pair) {
-                // ペアが見つかれば、そのテキストとヒントでピースを作成
-                createPiece(pair.text, modelSlots[idx], true, pair.hint, false);
-            } else {
-                // 万が一見つからない場合は、単語にバラしてヒントを結合（バックアップ処理）
-                const fallbackHint = targetSentence.split(' ')
-                    .map(w => hintPairs.find(p => p.text.toLowerCase() === w.toLowerCase())?.hint || "")
-                    .filter(h => h).join('/');
-                createPiece(targetSentence, modelSlots[idx], true, fallbackHint, false);
+        if (!targetSentence) return;
+
+        // このスロットの英文（targetSentence）に含まれるべきピースを探す
+        // 長いピースから順にマッチングさせることで誤判定を防ぐ
+        remainingPieces.sort((a,b) => b.text.length - a.text.length);
+
+        let tempSentence = targetSentence;
+        let matchedInThisSlot = [];
+
+        // スロットの文字列が空になるまで、定義されたピースを抽出
+        let found;
+        do {
+            found = false;
+            for (let i = 0; i < remainingPieces.length; i++) {
+                const p = remainingPieces[i];
+                // 大文字小文字を無視して、文の先頭にピースがあるかチェック
+                if (tempSentence.toLowerCase().startsWith(p.text.toLowerCase())) {
+                    matchedInThisSlot.push(p);
+                    tempSentence = tempSentence.substring(p.text.length).trim();
+                    remainingPieces.splice(i, 1); // 使用済みリストから削除
+                    found = true;
+                    break;
+                }
             }
-        }
+        } while (found && tempSentence.length > 0);
+
+        // 抽出したピースをこのスロットに表示
+        matchedInThisSlot.forEach(p => {
+            createPiece(p.text, modelSlots[idx], true, p.hint, false);
+        });
     });
 
     document.getElementById('model-answer-section').style.display = "block";
@@ -324,10 +344,6 @@ function applyHint() {
     isHintUsed = true;
     const q = currentSession[currentIndex];
     const area = document.getElementById('piece-area');
-    document.querySelectorAll('#drop-area .slot').forEach(s => {
-        const label = s.querySelector('.slot-label');
-        s.innerHTML = ""; s.appendChild(label);
-    });
     area.innerHTML = "";
     q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => {
         const [phrase, trans] = item.split(':');
