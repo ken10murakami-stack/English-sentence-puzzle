@@ -147,14 +147,13 @@ let isHintUsed = false;
 let currentMode = 'sort';
 let confettiActive = false;
 
-// --- 紙吹雪アニメーション ---
+// --- 紙吹雪アニメーション (変更なし) ---
 const canvas = document.getElementById('confetti-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
-
 class Particle {
     constructor() {
         this.x = Math.random() * canvas.width;
@@ -167,39 +166,14 @@ class Particle {
         this.rotationSpeed = Math.random() * 8 - 4;
         this.life = 1.0;
     }
-    update() {
-        this.y += this.speedY; this.x += this.speedX; this.rotation += this.rotationSpeed; this.life -= 0.005;
-    }
-    draw() {
-        ctx.save(); ctx.globalAlpha = this.life; ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation * Math.PI / 180); ctx.fillStyle = this.color;
-        ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size); ctx.restore();
-    }
+    update() { this.y += this.speedY; this.x += this.speedX; this.rotation += this.rotationSpeed; this.life -= 0.005; }
+    draw() { ctx.save(); ctx.globalAlpha = this.life; ctx.translate(this.x, this.y); ctx.rotate(this.rotation * Math.PI / 180); ctx.fillStyle = this.color; ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size); ctx.restore(); }
 }
+function launchConfetti() { particles = []; confettiActive = true; for (let i = 0; i < 70; i++) particles.push(new Particle()); animateConfetti(); }
+function stopConfetti() { confettiActive = false; particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+function animateConfetti() { if(!confettiActive) return; ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach((p, i) => { p.update(); p.draw(); if (p.y > canvas.height || p.life <= 0) particles.splice(i, 1); }); if (particles.length > 0) requestAnimationFrame(animateConfetti); else confettiActive = false; }
 
-function launchConfetti() {
-    particles = []; confettiActive = true;
-    for (let i = 0; i < 70; i++) particles.push(new Particle());
-    animateConfetti();
-}
-
-function stopConfetti() {
-    confettiActive = false; particles = [];
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function animateConfetti() {
-    if(!confettiActive) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particles.forEach((p, i) => {
-        p.update(); p.draw();
-        if (p.y > canvas.height || p.life <= 0) particles.splice(i, 1);
-    });
-    if (particles.length > 0) requestAnimationFrame(animateConfetti);
-    else confettiActive = false;
-}
-
-// --- メインロジック ---
+// --- メイン機能 ---
 async function loadData() {
     try {
         const res = await fetch(GAS_URL);
@@ -239,17 +213,52 @@ function onFilterChange() {
 function updateProgress() {
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
     const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
-    if (!pool.length) {
-        document.getElementById('progress-stats').innerText = "0 / 0 問完了 (0%)";
-        return;
-    }
+    if (!pool.length) { document.getElementById('progress-stats').innerText = "0 / 0 問完了 (0%)"; return; }
     const completedCount = pool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
     const percent = Math.floor((completedCount / pool.length) * 100);
-    
-    // UI更新
     document.getElementById('main-progress-bar').style.width = `${percent}%`;
     document.getElementById('main-progress-text').innerText = `${percent}%`;
     document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了 (${percent}%)`;
+}
+
+// 記録の保存（Export）
+function exportData() {
+    const dataStr = JSON.stringify(studyLogs, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `eng_study_record_${new Date().toISOString().slice(0,10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+// 記録の読込（Import）
+function importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = event => {
+            try {
+                const importedLogs = JSON.parse(event.target.result);
+                if (confirm("現在の記録を上書きして読み込みますか？")) {
+                    studyLogs = importedLogs;
+                    localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
+                    location.reload(); // 反映のためにリロード
+                }
+            } catch (err) {
+                alert("ファイルの読み込みに失敗しました。正しいJSONファイルか確認してください。");
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
 }
 
 function resetSelectedCategoryProgress() {
@@ -289,14 +298,10 @@ function showQuestion() {
     document.getElementById('feedback').innerText = "";
     document.getElementById('model-answer-section').style.display = "none";
     document.getElementById('next-btn').style.display = "none";
-    
     if(currentMode === 'sort') {
         document.getElementById('check-btn').style.display = "block";
         document.getElementById('hint-btn').style.display = "block";
-        document.querySelectorAll('#drop-area .slot').forEach(s => {
-            const label = s.querySelector('.slot-label');
-            s.innerHTML = ""; s.appendChild(label);
-        });
+        document.querySelectorAll('#drop-area .slot').forEach(s => { const label = s.querySelector('.slot-label'); s.innerHTML = ""; s.appendChild(label); });
         const area = document.getElementById('piece-area');
         area.innerHTML = "";
         let rawWords = [];
@@ -310,27 +315,15 @@ function createPiece(text, target, hasHint, hintText = "", isDraggable = true) {
     wrapper.className = 'piece-wrapper';
     const p = document.createElement('div');
     p.className = 'piece'; p.innerText = text; 
-    if(isDraggable) {
-        p.draggable = true;
-        p.ondragstart = (e) => { e.dataTransfer.setData('text', text); p.classList.add('dragging'); };
-        p.ondragend = () => p.classList.remove('dragging');
-    }
+    if(isDraggable) { p.draggable = true; p.ondragstart = (e) => { e.dataTransfer.setData('text', text); p.classList.add('dragging'); }; p.ondragend = () => p.classList.remove('dragging'); }
     wrapper.appendChild(p);
-    if(hasHint && hintText) {
-        const h = document.createElement('div');
-        h.className = 'hint-label'; h.innerText = hintText;
-        wrapper.appendChild(h);
-    }
+    if(hasHint && hintText) { const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = hintText; wrapper.appendChild(h); }
     target.appendChild(wrapper);
 }
 
 document.querySelectorAll('.slot, .piece-container').forEach(zone => {
     zone.ondragover = (e) => e.preventDefault();
-    zone.ondrop = (e) => {
-        e.preventDefault();
-        const dragging = document.querySelector('.dragging');
-        if (dragging) zone.appendChild(dragging.parentElement);
-    };
+    zone.ondrop = (e) => { e.preventDefault(); const dragging = document.querySelector('.dragging'); if (dragging) zone.appendChild(dragging.parentElement); };
 });
 
 function checkAnswer() {
@@ -357,18 +350,12 @@ function checkAnswer() {
     }
 }
 
-function showWritingAnswer() {
-    document.getElementById('writing-answer-btn').style.display = "none";
-    showModelAnswer(currentSession[currentIndex]);
-}
+function showWritingAnswer() { document.getElementById('writing-answer-btn').style.display = "none"; showModelAnswer(currentSession[currentIndex]); }
 
 function showModelAnswer(q) {
     const modelSlots = document.querySelectorAll('#model-drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
-    const definedPieces = q.D.split(' ').map(item => {
-        const [phrase, hint] = item.split(':');
-        return { text: phrase.replace(/_/g, ' ').trim(), hint: hint || "" };
-    });
+    const definedPieces = q.D.split(' ').map(item => { const [phrase, hint] = item.split(':'); return { text: phrase.replace(/_/g, ' ').trim(), hint: hint || "" }; });
     cols.forEach((col, idx) => {
         const label = modelSlots[idx].querySelector('.slot-label');
         modelSlots[idx].innerHTML = ""; modelSlots[idx].appendChild(label);
@@ -380,18 +367,9 @@ function showModelAnswer(q) {
             let found = false;
             for (let p of sortedDefinitions) {
                 const regex = new RegExp('^' + p.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-                if (regex.test(targetSentence)) {
-                    matchedPieces.push(p);
-                    targetSentence = targetSentence.substring(p.text.length).trim();
-                    found = true; break;
-                }
+                if (regex.test(targetSentence)) { matchedPieces.push(p); targetSentence = targetSentence.substring(p.text.length).trim(); found = true; break; }
             }
-            if (!found) {
-                const nextSpace = targetSentence.indexOf(' ');
-                const unknown = nextSpace === -1 ? targetSentence : targetSentence.substring(0, nextSpace);
-                matchedPieces.push({ text: unknown, hint: "" });
-                targetSentence = nextSpace === -1 ? "" : targetSentence.substring(nextSpace).trim();
-            }
+            if (!found) { const nextSpace = targetSentence.indexOf(' '); const unknown = nextSpace === -1 ? targetSentence : targetSentence.substring(0, nextSpace); matchedPieces.push({ text: unknown, hint: "" }); targetSentence = nextSpace === -1 ? "" : targetSentence.substring(nextSpace).trim(); }
         }
         matchedPieces.forEach(p => createPiece(p.text, modelSlots[idx], true, p.hint, false));
     });
@@ -402,45 +380,16 @@ function showModelAnswer(q) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function goToNextQuestion() {
-    stopConfetti();
-    if(++currentIndex < currentSession.length) showQuestion();
-    else { alert("10問終了！"); location.reload(); }
-}
+function goToNextQuestion() { stopConfetti(); if(++currentIndex < currentSession.length) showQuestion(); else { alert("10問終了！"); location.reload(); } }
 
 function applyHint() {
     isHintUsed = true;
     const q = currentSession[currentIndex];
     const area = document.getElementById('piece-area');
-    document.querySelectorAll('#drop-area .slot').forEach(s => {
-        const label = s.querySelector('.slot-label');
-        s.innerHTML = ""; s.appendChild(label);
-    });
+    document.querySelectorAll('#drop-area .slot').forEach(s => { const label = s.querySelector('.slot-label'); s.innerHTML = ""; s.appendChild(label); });
     area.innerHTML = "";
-    q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => {
-        const [phrase, trans] = item.split(':');
-        createPiece(phrase.replace(/_/g, ' '), area, true, trans || "");
-    });
+    q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => { const [phrase, trans] = item.split(':'); createPiece(phrase.replace(/_/g, ' '), area, true, trans || ""); });
     document.getElementById('hint-btn').style.display = "none";
-}
-
-function exportData() {
-    const blob = new Blob([JSON.stringify(studyLogs)], {type: 'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'study_record.json'; a.click();
-}
-
-function importData() {
-    const input = document.createElement('input'); input.type = 'file';
-    input.onchange = (e) => {
-        const reader = new FileReader();
-        reader.onload = (re) => {
-            studyLogs = JSON.parse(re.target.result);
-            localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-            location.reload();
-        };
-        reader.readAsText(e.target.files[0]);
-    };
-    input.click();
 }
 
 window.onload = loadData;
