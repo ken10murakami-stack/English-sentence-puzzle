@@ -158,24 +158,17 @@ let isHintUsed = false;
 let currentMode = 'sort';
 let confettiActive = false;
 
-// --- 紙吹雪アニメーション ---
+// --- 紙吹雪 ---
 const canvas = document.getElementById('confetti-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+window.addEventListener('resize', resizeCanvas); resizeCanvas();
 class Particle {
     constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height - canvas.height;
-        this.size = Math.random() * 8 + 4;
-        this.speedY = Math.random() * 4 + 2;
-        this.speedX = Math.random() * 2 - 1;
-        this.color = `hsl(${Math.random() * 360}, 75%, 60%)`;
-        this.rotation = Math.random() * 360;
-        this.rotationSpeed = Math.random() * 8 - 4;
-        this.life = 1.0;
+        this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height - canvas.height;
+        this.size = Math.random() * 8 + 4; this.speedY = Math.random() * 4 + 2; this.speedX = Math.random() * 2 - 1;
+        this.color = `hsl(${Math.random() * 360}, 75%, 60%)`; this.rotation = Math.random() * 360; this.rotationSpeed = Math.random() * 8 - 4; this.life = 1.0;
     }
     update() { this.y += this.speedY; this.x += this.speedX; this.rotation += this.rotationSpeed; this.life -= 0.005; }
     draw() { ctx.save(); ctx.globalAlpha = this.life; ctx.translate(this.x, this.y); ctx.rotate(this.rotation * Math.PI / 180); ctx.fillStyle = this.color; ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size); ctx.restore(); }
@@ -184,7 +177,7 @@ function launchConfetti() { particles = []; confettiActive = true; for (let i = 
 function stopConfetti() { confettiActive = false; particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height); }
 function animateConfetti() { if(!confettiActive) return; ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach((p, i) => { p.update(); p.draw(); if (p.y > canvas.height || p.life <= 0) particles.splice(i, 1); }); if (particles.length > 0) requestAnimationFrame(animateConfetti); else confettiActive = false; }
 
-// --- 基本機能 ---
+// --- ロジック部 ---
 async function loadData() {
     try {
         const res = await fetch(GAS_URL);
@@ -232,13 +225,32 @@ function updateProgress() {
     document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了 (${percent}%)`;
 }
 
+// 出題ロジックの修正
 function startLesson(mode) {
     currentMode = mode;
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
-    const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
-    if(!pool.length) return alert("範囲を選択してください");
-    pool.sort((a,b) => (studyLogs[a.id]?.streak||0) - (studyLogs[b.id]?.streak||0));
-    currentSession = pool.slice(0,10).sort(()=>Math.random()-0.5);
+    
+    // 選択されたフィルタ内のすべての問題
+    const filterPool = database.filter(d => 
+        getSel('grade').includes(String(d.grade).trim()) && 
+        getSel('cat').includes(String(d.cat).trim()) && 
+        getSel('lv').includes(String(d.lv).trim())
+    );
+
+    // 正解カウント（streak）で分類
+    const count0 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
+    const count1 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
+
+    // ロジック：0を最優先、足りなければ1を補充、2以上は出さない
+    currentSession = [...count0];
+    if (currentSession.length < 10) {
+        currentSession = [...currentSession, ...count1.slice(0, 10 - currentSession.length)];
+    } else {
+        currentSession = currentSession.slice(0, 10);
+    }
+
+    if(!currentSession.length) return alert("この条件で学習できる未完了の問題はありません！");
+
     currentIndex = 0;
     document.getElementById('home-screen').style.display='none';
     document.getElementById('quiz-screen').style.display='flex';
@@ -255,16 +267,14 @@ function showQuestion() {
     document.getElementById('feedback').innerText = "";
     document.getElementById('model-answer-section').style.display = "none";
     
-    // 表示切替
     const sortEls = document.querySelectorAll('.sort-only');
     const writingEls = document.querySelectorAll('.writing-only');
     
     if(currentMode === 'sort') {
         sortEls.forEach(el => el.style.display = '');
         writingEls.forEach(el => el.style.display = 'none');
-        document.getElementById('next-btn').style.display = "none"; // 答え合わせ後に表示
+        document.getElementById('next-btn').style.display = "none";
         document.getElementById('check-btn').style.display = "block";
-        
         document.querySelectorAll('#drop-area .slot').forEach(s => { const label = s.querySelector('.slot-label'); s.innerHTML = ""; s.appendChild(label); });
         const area = document.getElementById('piece-area');
         area.innerHTML = "";
@@ -272,7 +282,6 @@ function showQuestion() {
         q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => rawWords.push(w)); });
         rawWords.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
     } else {
-        // 書き取りモード
         sortEls.forEach(el => el.style.display = 'none');
         writingEls.forEach(el => el.style.display = 'block');
         document.getElementById('next-btn').style.display = "block";
@@ -350,9 +359,8 @@ function showModelAnswer(q) {
 
 function goToNextQuestion() {
     stopConfetti();
-    if(++currentIndex < currentSession.length) {
-        showQuestion();
-    } else {
+    if(++currentIndex < currentSession.length) { showQuestion(); } 
+    else {
         if(currentMode === 'writing') showFinalResults();
         else { alert("10問終了！"); location.reload(); }
     }
@@ -364,7 +372,6 @@ function showFinalResults() {
     const resultList = document.getElementById('result-list');
     resultScreen.style.display = 'flex';
     resultList.innerHTML = "";
-
     currentSession.forEach(q => {
         const fullEn = [q.G, q.H, q.I, q.J, q.K].filter(v => v).join(' ');
         const item = document.createElement('div');
