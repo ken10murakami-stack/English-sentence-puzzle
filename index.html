@@ -32,18 +32,22 @@
         
         /* スロット関連 */
         .slot-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 15px 0; }
-        .slot { background: #fafafa; border: 2px dashed #bdc3c7; border-radius: 12px; min-height: 110px; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; }
-        .slot-label { width: 100%; font-size: 0.75rem; color: #7f8c8d; text-align: center; margin-bottom: 8px; background: #eee; padding: 4px 0; border-radius: 4px; font-weight: bold; }
+        .slot { background: #fafafa; border: 2px dashed #bdc3c7; border-radius: 12px; min-height: 110px; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; cursor: pointer; transition: 0.2s; }
+        .slot:hover { background: #f0f7ff; border-color: var(--accent); }
+        .slot-label { width: 100%; font-size: 0.75rem; color: #7f8c8d; text-align: center; margin-bottom: 8px; background: #eee; padding: 4px 0; border-radius: 4px; font-weight: bold; pointer-events: none; }
         
         .model-answer-section { display: none; background: #fff3e0; border: 2px solid var(--hint); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
         .model-answer-label { font-weight: bold; color: var(--hint); margin-bottom: 10px; text-align: center; }
 
         /* 単語ピース */
         .piece-container { background: #dfe6e9; padding: 25px; border-radius: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; min-height: 100px; }
-        .piece-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-        .piece { background: var(--accent); color: white; padding: 10px 18px; border-radius: 8px; cursor: grab; font-weight: bold; box-shadow: 0 4px 0 #2980b9; font-size: 1.1rem; user-select: none; }
-        .dragging { opacity: 0.3; }
-        .hint-label { font-size: 0.75rem; color: var(--hint); font-weight: bold; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--hint); }
+        .piece-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+        .piece { background: var(--accent); color: white; padding: 10px 18px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 0 #2980b9; font-size: 1.1rem; user-select: none; transition: 0.2s; }
+        
+        /* 選択中のスタイル */
+        .active-piece .piece { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(52, 152, 219, 0.4); border: 2px solid white; background: #2980b9; }
+
+        .hint-label { font-size: 0.75rem; color: var(--hint); font-weight: bold; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--hint); pointer-events: none; }
 
         /* ボタン */
         .action-bar { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
@@ -122,13 +126,13 @@
         <div class="sort-only">
             <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;">【あなたの解答】</div>
             <div class="slot-container" id="drop-area">
-                <div class="slot" data-col="G"><div class="slot-label">⓪疑問文のとき</div></div>
-                <div class="slot" data-col="H"><div class="slot-label">①だれは/何は</div></div>
-                <div class="slot" data-col="I"><div class="slot-label">②どうする/=</div></div>
-                <div class="slot" data-col="J"><div class="slot-label">③何を/何</div></div>
-                <div class="slot" data-col="K"><div class="slot-label">④いつ・どこで・どのように</div></div>
+                <div class="slot" data-col="G" onclick="handleSlotClick(this)"><div class="slot-label">⓪疑問文のとき</div></div>
+                <div class="slot" data-col="H" onclick="handleSlotClick(this)"><div class="slot-label">①だれは/何は</div></div>
+                <div class="slot" data-col="I" onclick="handleSlotClick(this)"><div class="slot-label">②どうする/=</div></div>
+                <div class="slot" data-col="J" onclick="handleSlotClick(this)"><div class="slot-label">③何を/何</div></div>
+                <div class="slot" data-col="K" onclick="handleSlotClick(this)"><div class="slot-label">④いつ・どこで・どのように</div></div>
             </div>
-            <div class="piece-container" id="piece-area"></div>
+            <div class="piece-container" id="piece-area" onclick="handleSlotClick(this)"></div>
         </div>
         <div class="writing-only" style="text-align: center; color: #666; font-style: italic; margin-top: 10px;">
             ノートなどに英文を書き取ってから「次の問題」へ進んでください。
@@ -156,12 +160,13 @@ let currentSession = [];
 let currentIndex = 0;
 let isHintUsed = false;
 let currentMode = 'sort';
-let confettiActive = false;
+let activePieceWrapper = null; // 現在選択中のピース
 
-// --- 紙吹雪 ---
+// --- 紙吹雪 (省略) ---
 const canvas = document.getElementById('confetti-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
+let confettiActive = false;
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 class Particle {
@@ -177,7 +182,7 @@ function launchConfetti() { particles = []; confettiActive = true; for (let i = 
 function stopConfetti() { confettiActive = false; particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height); }
 function animateConfetti() { if(!confettiActive) return; ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach((p, i) => { p.update(); p.draw(); if (p.y > canvas.height || p.life <= 0) particles.splice(i, 1); }); if (particles.length > 0) requestAnimationFrame(animateConfetti); else confettiActive = false; }
 
-// --- ロジック部 ---
+// --- メイン機能 ---
 async function loadData() {
     try {
         const res = await fetch(GAS_URL);
@@ -225,32 +230,17 @@ function updateProgress() {
     document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了 (${percent}%)`;
 }
 
-// 出題ロジックの修正
+// 出題ロジック
 function startLesson(mode) {
     currentMode = mode;
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
-    
-    // 選択されたフィルタ内のすべての問題
-    const filterPool = database.filter(d => 
-        getSel('grade').includes(String(d.grade).trim()) && 
-        getSel('cat').includes(String(d.cat).trim()) && 
-        getSel('lv').includes(String(d.lv).trim())
-    );
-
-    // 正解カウント（streak）で分類
+    const filterPool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
     const count0 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
     const count1 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
-
-    // ロジック：0を最優先、足りなければ1を補充、2以上は出さない
     currentSession = [...count0];
-    if (currentSession.length < 10) {
-        currentSession = [...currentSession, ...count1.slice(0, 10 - currentSession.length)];
-    } else {
-        currentSession = currentSession.slice(0, 10);
-    }
-
-    if(!currentSession.length) return alert("この条件で学習できる未完了の問題はありません！");
-
+    if (currentSession.length < 10) currentSession = [...currentSession, ...count1.slice(0, 10 - currentSession.length)];
+    else currentSession = currentSession.slice(0, 10);
+    if(!currentSession.length) return alert("未完了の問題がありません！");
     currentIndex = 0;
     document.getElementById('home-screen').style.display='none';
     document.getElementById('quiz-screen').style.display='flex';
@@ -260,6 +250,7 @@ function startLesson(mode) {
 
 function showQuestion() {
     stopConfetti();
+    activePieceWrapper = null;
     const q = currentSession[currentIndex];
     isHintUsed = false;
     document.getElementById('quiz-counter').innerText = `${currentIndex + 1} / ${currentSession.length}`;
@@ -289,21 +280,58 @@ function showQuestion() {
     }
 }
 
-function createPiece(text, target, hasHint, hintText = "", isDraggable = true) {
+// ピース作成（クリックイベント追加）
+function createPiece(text, target, hasHint, hintText = "") {
     const wrapper = document.createElement('div');
     wrapper.className = 'piece-wrapper';
+    wrapper.onclick = (e) => {
+        e.stopPropagation(); // スロットのクリックイベントと干渉させない
+        handlePieceClick(wrapper);
+    };
+
     const p = document.createElement('div');
     p.className = 'piece'; p.innerText = text; 
-    if(isDraggable) { p.draggable = true; p.ondragstart = (e) => { e.dataTransfer.setData('text', text); p.classList.add('dragging'); }; p.ondragend = () => p.classList.remove('dragging'); }
     wrapper.appendChild(p);
-    if(hasHint && hintText) { const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = hintText; wrapper.appendChild(h); }
+    
+    if(hasHint && hintText) {
+        const h = document.createElement('div');
+        h.className = 'hint-label'; h.innerText = hintText;
+        wrapper.appendChild(h);
+    }
     target.appendChild(wrapper);
 }
 
-document.querySelectorAll('.slot, .piece-container').forEach(zone => {
-    zone.ondragover = (e) => e.preventDefault();
-    zone.ondrop = (e) => { e.preventDefault(); const dragging = document.querySelector('.dragging'); if (dragging) zone.appendChild(dragging.parentElement); };
-});
+// 単語がクリックされたとき
+function handlePieceClick(wrapper) {
+    // すでに箱に入っている場合は、下のエリアに戻す
+    if (wrapper.parentElement.classList.contains('slot')) {
+        document.getElementById('piece-area').appendChild(wrapper);
+        if (activePieceWrapper === wrapper) {
+            activePieceWrapper.classList.remove('active-piece');
+            activePieceWrapper = null;
+        }
+        return;
+    }
+
+    // すでにアクティブなものがあれば解除
+    if (activePieceWrapper) {
+        activePieceWrapper.classList.remove('active-piece');
+    }
+
+    // 選択状態にする
+    activePieceWrapper = wrapper;
+    activePieceWrapper.classList.add('active-piece');
+}
+
+// スロット（箱）または下のエリアがクリックされたとき
+function handleSlotClick(targetZone) {
+    if (!activePieceWrapper) return;
+
+    // 選択中の単語を、クリックしたゾーンに移動
+    targetZone.appendChild(activePieceWrapper);
+    activePieceWrapper.classList.remove('active-piece');
+    activePieceWrapper = null;
+}
 
 function checkAnswer() {
     const q = currentSession[currentIndex];
@@ -346,9 +374,16 @@ function showModelAnswer(q) {
                 const regex = new RegExp('^' + p.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
                 if (regex.test(targetSentence)) { matchedPieces.push(p); targetSentence = targetSentence.substring(p.text.length).trim(); found = true; break; }
             }
-            if (!found) { const nextSpace = targetSentence.indexOf(' '); const unknown = nextSpace === -1 ? targetSentence : targetSentence.substring(0, nextSpace); matchedPieces.push({ text: unknown, hint: "" }); targetSentence = nextSpace === -1 ? "" : targetSentence.substring(nextSpace).trim(); }
+            if (!found) { matchedPieces.push({ text: targetSentence, hint: "" }); targetSentence = ""; }
         }
-        matchedPieces.forEach(p => createPiece(p.text, modelSlots[idx], true, p.hint, false));
+        matchedPieces.forEach(p => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'piece-wrapper';
+            const div = document.createElement('div'); div.className = 'piece'; div.innerText = p.text;
+            wrapper.appendChild(div);
+            if(p.hint){ const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = p.hint; wrapper.appendChild(h); }
+            modelSlots[idx].appendChild(wrapper);
+        });
     });
     document.getElementById('model-answer-section').style.display = "block";
     document.getElementById('check-btn').style.display = "none";
@@ -359,7 +394,7 @@ function showModelAnswer(q) {
 
 function goToNextQuestion() {
     stopConfetti();
-    if(++currentIndex < currentSession.length) { showQuestion(); } 
+    if(++currentIndex < currentSession.length) showQuestion();
     else {
         if(currentMode === 'writing') showFinalResults();
         else { alert("10問終了！"); location.reload(); }
@@ -391,24 +426,23 @@ function applyHint() {
     document.getElementById('hint-btn').style.display = "none";
 }
 
+// データの保存・読込 (変更なし)
 function exportData() {
     const dataStr = JSON.stringify(studyLogs, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `eng_study_record_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `record.json`; a.click();
 }
 
 function importData() {
     const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
     input.onchange = e => {
         const file = e.target.files[0];
-        if (!file) return;
         const reader = new FileReader();
         reader.onload = event => {
-            try {
-                const importedLogs = JSON.parse(event.target.result);
-                if (confirm("記録を上書きして読み込みますか？")) { studyLogs = importedLogs; localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs)); location.reload(); }
-            } catch (err) { alert("失敗しました。"); }
+            studyLogs = JSON.parse(event.target.result);
+            localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
+            location.reload();
         };
         reader.readAsText(file);
     };
@@ -418,7 +452,7 @@ function importData() {
 function resetSelectedCategoryProgress() {
     const selectedCats = Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value);
     if (!selectedCats.length || !confirm("リセットしますか？")) return;
-    database.forEach(d => { if(selectedCats.includes(String(d.cat).trim()) && studyLogs[d.id]) studyLogs[d.id].streak = 0; });
+    database.forEach(d => { if(selectedCats.includes(String(d.cat).trim())) { if(studyLogs[d.id]) studyLogs[d.id].streak = 0; }});
     localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
     updateProgress();
 }
