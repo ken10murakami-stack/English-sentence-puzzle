@@ -26,11 +26,19 @@
         .checkbox-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
         .checkbox-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; }
         
+        /* 進捗一覧表スタイル */
+        .status-table-wrapper { margin-top: 30px; overflow-x: auto; }
+        .status-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 500px; }
+        .status-table th, .status-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .status-table th { background: #f8f9fa; color: var(--primary); }
+        .status-table .cat-name { text-align: left; font-weight: bold; background: #fcfcfc; min-width: 150px; }
+        .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
+        .cell-zero { color: #ccc; }
+
         /* クイズ画面 */
         #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
         .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
         
-        /* スロット関連 */
         .slot-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 15px 0; }
         .slot { background: #fafafa; border: 2px dashed #bdc3c7; border-radius: 12px; min-height: 110px; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; cursor: pointer; transition: 0.2s; }
         .slot:hover { background: #f0f7ff; border-color: var(--accent); }
@@ -39,17 +47,12 @@
         .model-answer-section { display: none; background: #fff3e0; border: 2px solid var(--hint); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
         .model-answer-label { font-weight: bold; color: var(--hint); margin-bottom: 10px; text-align: center; }
 
-        /* 単語ピース */
         .piece-container { background: #dfe6e9; padding: 25px; border-radius: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; min-height: 100px; }
         .piece-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
         .piece { background: var(--accent); color: white; padding: 10px 18px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 0 #2980b9; font-size: 1.1rem; user-select: none; transition: 0.2s; }
-        
-        /* 選択中のスタイル */
         .active-piece .piece { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(52, 152, 219, 0.4); border: 2px solid white; background: #2980b9; }
-
         .hint-label { font-size: 0.75rem; color: var(--hint); font-weight: bold; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--hint); pointer-events: none; }
 
-        /* ボタン */
         .action-bar { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
         .btn { padding: 12px 35px; border: none; border-radius: 30px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: 0.2s; }
         .btn-primary { background: var(--accent); color: white; }
@@ -57,15 +60,12 @@
         .btn-hint { background: var(--hint); color: white; }
         .btn-next { background: var(--primary); color: white; }
         .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
-        .btn-mini-reset { font-size: 0.7rem; padding: 2px 6px; border: 1px solid var(--error); color: var(--error); background: none; border-radius: 4px; cursor: pointer; }
         .btn-text { font-size: 0.75rem; color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
         .btn-text-danger { font-size: 0.75rem; color: var(--error); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
 
-        /* 結果リスト */
         .result-item { border-bottom: 1px solid #eee; padding: 15px 0; }
         .result-jp { font-weight: bold; color: var(--primary); margin-bottom: 5px; }
         .result-en { color: var(--success); font-size: 1.1rem; }
-
         #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
     </style>
 </head>
@@ -76,9 +76,10 @@
 <div class="main-wrapper">
     <div id="home-screen" class="card">
         <h1>英語語順トレーニング</h1>
+        
         <div style="margin-bottom: 20px;">
             <div style="display:flex; justify-content: space-between; align-items: flex-end;">
-                <span style="font-weight:bold; font-size:0.9rem;">現在の達成状況</span>
+                <span style="font-weight:bold; font-size:0.9rem;">現在の選択範囲の達成状況</span>
                 <span id="progress-stats" style="font-size:0.8rem; color:#666;">0 / 0 問完了 (0%)</span>
             </div>
             <div class="progress-container">
@@ -86,15 +87,17 @@
                 <div id="main-progress-text" class="progress-text">0%</div>
             </div>
         </div>
+
         <div class="filter-section">
             <div class="filter-group"><div class="group-header"><h3>学年</h3></div><div id="filter-grade" class="checkbox-list"></div></div>
             <div class="filter-group">
                 <div class="group-header"><h3>文法項目</h3><div style="display:flex; gap:8px;"><button class="btn-text" onclick="toggleAll('cat', true)">全選択</button><button class="btn-text" onclick="toggleAll('cat', false)">全解除</button></div></div>
                 <div id="filter-cat" class="checkbox-list"></div>
-                <div style="margin-top:10px; text-align:right;"><button class="btn-text-danger" onclick="resetSelectedCategoryProgress()">記録リセット</button></div>
+                <div style="margin-top:10px; text-align:right;"><button class="btn-text-danger" onclick="resetFilteredProgress()">選択中の範囲の記録をリセット</button></div>
             </div>
             <div class="filter-group"><div class="group-header"><h3>レベル</h3></div><div id="filter-lv" class="checkbox-list"></div></div>
         </div>
+
         <div class="action-bar" style="flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="startLesson('sort')">10問並べ替え開始</button>
             <button class="btn btn-success" style="background:var(--primary);" onclick="startLesson('writing')">10問書き取り練習</button>
@@ -102,6 +105,14 @@
                 <button class="btn btn-outline" onclick="exportData()">記録保存</button>
                 <button class="btn btn-outline" onclick="importData()">記録読込</button>
             </div>
+        </div>
+
+        <div class="status-table-wrapper">
+            <h3 style="margin-bottom:10px; font-size:1rem; border-left:4px solid var(--accent); padding-left:10px;">文法項目×レベル別 達成状況</h3>
+            <table class="status-table" id="matrix-table">
+                <thead><tr id="matrix-head"></tr></thead>
+                <tbody id="matrix-body"></tbody>
+            </table>
         </div>
     </div>
 
@@ -134,9 +145,6 @@
             </div>
             <div class="piece-container" id="piece-area" onclick="handleSlotClick(this)"></div>
         </div>
-        <div class="writing-only" style="text-align: center; color: #666; font-style: italic; margin-top: 10px;">
-            ノートなどに英文を書き取ってから「次の問題」へ進んでください。
-        </div>
         <div class="action-bar">
             <button id="check-btn" class="btn btn-success sort-only" onclick="checkAnswer()">答え合わせ</button>
             <button id="next-btn" class="btn btn-next" onclick="goToNextQuestion()">次の問題へ ▶</button>
@@ -146,9 +154,7 @@
     <div id="result-screen" class="card">
         <h2 style="text-align:center;">練習結果（正解リスト）</h2>
         <div id="result-list"></div>
-        <div class="action-bar">
-            <button class="btn btn-primary" onclick="location.reload()">ホームへ戻る</button>
-        </div>
+        <div class="action-bar"><button class="btn btn-primary" onclick="location.reload()">ホームへ戻る</button></div>
     </div>
 </div>
 
@@ -160,13 +166,13 @@ let currentSession = [];
 let currentIndex = 0;
 let isHintUsed = false;
 let currentMode = 'sort';
-let activePieceWrapper = null; // 現在選択中のピース
+let activePieceWrapper = null;
+let confettiActive = false;
 
-// --- 紙吹雪 (省略) ---
+// --- 紙吹雪演出 ---
 const canvas = document.getElementById('confetti-canvas');
 const ctx = canvas.getContext('2d');
 let particles = [];
-let confettiActive = false;
 function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.addEventListener('resize', resizeCanvas); resizeCanvas();
 class Particle {
@@ -182,7 +188,7 @@ function launchConfetti() { particles = []; confettiActive = true; for (let i = 
 function stopConfetti() { confettiActive = false; particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height); }
 function animateConfetti() { if(!confettiActive) return; ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach((p, i) => { p.update(); p.draw(); if (p.y > canvas.height || p.life <= 0) particles.splice(i, 1); }); if (particles.length > 0) requestAnimationFrame(animateConfetti); else confettiActive = false; }
 
-// --- メイン機能 ---
+// --- メインロジック ---
 async function loadData() {
     try {
         const res = await fetch(GAS_URL);
@@ -222,115 +228,127 @@ function onFilterChange() {
 function updateProgress() {
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
     const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
-    if (!pool.length) { document.getElementById('progress-stats').innerText = "0 / 0 問完了 (0%)"; return; }
-    const completedCount = pool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
-    const percent = Math.floor((completedCount / pool.length) * 100);
-    document.getElementById('main-progress-bar').style.width = `${percent}%`;
-    document.getElementById('main-progress-text').innerText = `${percent}%`;
-    document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了 (${percent}%)`;
+    if (pool.length > 0) {
+        const completedCount = pool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
+        const percent = Math.floor((completedCount / pool.length) * 100);
+        document.getElementById('main-progress-bar').style.width = `${percent}%`;
+        document.getElementById('main-progress-text').innerText = `${percent}%`;
+        document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了 (${percent}%)`;
+    } else {
+        document.getElementById('progress-stats').innerText = "0 / 0 問完了 (0%)";
+    }
+    renderMatrix(); // マトリックス表の更新
 }
 
-// 出題ロジック
+// 【新機能】マトリックス表のレンダリング
+function renderMatrix() {
+    const head = document.getElementById('matrix-head');
+    const body = document.getElementById('matrix-body');
+    
+    // ユニークな文法項目とレベルを抽出してソート
+    const cats = [...new Set(database.map(d => String(d.cat).trim()))].sort();
+    const lvs = [...new Set(database.map(d => String(d.lv).trim()))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+
+    // ヘッダー作成
+    head.innerHTML = `<th>文法項目</th>` + lvs.map(l => `<th>${l}</th>`).join('');
+
+    // ボディ作成
+    body.innerHTML = cats.map(cat => {
+        let row = `<tr><td class="cat-name">${cat}</td>`;
+        lvs.forEach(lv => {
+            const cellPool = database.filter(d => String(d.cat).trim() === cat && String(d.lv).trim() === lv);
+            if (cellPool.length === 0) {
+                row += `<td>-</td>`;
+            } else {
+                const done = cellPool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
+                const pct = Math.floor((done / cellPool.length) * 100);
+                const cellClass = pct === 100 ? 'cell-perfect' : (done === 0 ? 'cell-zero' : '');
+                row += `<td class="${cellClass}">${done}/${cellPool.length}<br><small>${pct}%</small></td>`;
+            }
+        });
+        return row + `</tr>`;
+    }).join('');
+}
+
+function resetFilteredProgress() {
+    const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
+    const sG = getSel('grade'), sC = getSel('cat'), sL = getSel('lv');
+    if (!sG.length || !sC.length || !sL.length) return alert("条件をすべて選択してください。");
+    if (!confirm("リセットしますか？")) return;
+    database.forEach(d => {
+        if (sG.includes(String(d.grade).trim()) && sC.includes(String(d.cat).trim()) && sL.includes(String(d.lv).trim())) {
+            if (studyLogs[d.id]) studyLogs[d.id].streak = 0;
+        }
+    });
+    localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
+    updateProgress();
+}
+
 function startLesson(mode) {
     currentMode = mode;
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
     const filterPool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
-    const count0 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
-    const count1 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
-    currentSession = [...count0];
-    if (currentSession.length < 10) currentSession = [...currentSession, ...count1.slice(0, 10 - currentSession.length)];
-    else currentSession = currentSession.slice(0, 10);
-    if(!currentSession.length) return alert("未完了の問題がありません！");
+    if(mode === 'sort') {
+        const c0 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
+        const c1 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
+        currentSession = [...c0];
+        if (currentSession.length < 10) currentSession = [...currentSession, ...c1.slice(0, 10 - currentSession.length)];
+        else currentSession = currentSession.slice(0, 10);
+        if(!currentSession.length) return alert("未完了の問題がありません！");
+    } else {
+        currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 10);
+    }
     currentIndex = 0;
     document.getElementById('home-screen').style.display='none';
     document.getElementById('quiz-screen').style.display='flex';
-    document.getElementById('result-screen').style.display='none';
     showQuestion();
 }
 
 function showQuestion() {
-    stopConfetti();
-    activePieceWrapper = null;
-    const q = currentSession[currentIndex];
-    isHintUsed = false;
+    stopConfetti(); activePieceWrapper = null;
+    const q = currentSession[currentIndex]; isHintUsed = false;
     document.getElementById('quiz-counter').innerText = `${currentIndex + 1} / ${currentSession.length}`;
     document.getElementById('japanese-text').innerText = q.E;
     document.getElementById('feedback').innerText = "";
     document.getElementById('model-answer-section').style.display = "none";
-    
     const sortEls = document.querySelectorAll('.sort-only');
-    const writingEls = document.querySelectorAll('.writing-only');
-    
     if(currentMode === 'sort') {
         sortEls.forEach(el => el.style.display = '');
-        writingEls.forEach(el => el.style.display = 'none');
         document.getElementById('next-btn').style.display = "none";
         document.getElementById('check-btn').style.display = "block";
         document.querySelectorAll('#drop-area .slot').forEach(s => { const label = s.querySelector('.slot-label'); s.innerHTML = ""; s.appendChild(label); });
-        const area = document.getElementById('piece-area');
-        area.innerHTML = "";
-        let rawWords = [];
-        q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => rawWords.push(w)); });
+        const area = document.getElementById('piece-area'); area.innerHTML = "";
+        let rawWords = []; q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => rawWords.push(w)); });
         rawWords.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
     } else {
         sortEls.forEach(el => el.style.display = 'none');
-        writingEls.forEach(el => el.style.display = 'block');
         document.getElementById('next-btn').style.display = "block";
         document.getElementById('check-btn').style.display = "none";
     }
 }
 
-// ピース作成（クリックイベント追加）
 function createPiece(text, target, hasHint, hintText = "") {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'piece-wrapper';
-    wrapper.onclick = (e) => {
-        e.stopPropagation(); // スロットのクリックイベントと干渉させない
-        handlePieceClick(wrapper);
-    };
-
-    const p = document.createElement('div');
-    p.className = 'piece'; p.innerText = text; 
-    wrapper.appendChild(p);
-    
-    if(hasHint && hintText) {
-        const h = document.createElement('div');
-        h.className = 'hint-label'; h.innerText = hintText;
-        wrapper.appendChild(h);
-    }
+    const wrapper = document.createElement('div'); wrapper.className = 'piece-wrapper';
+    wrapper.onclick = (e) => { e.stopPropagation(); handlePieceClick(wrapper); };
+    const p = document.createElement('div'); p.className = 'piece'; p.innerText = text; wrapper.appendChild(p);
+    if(hasHint && hintText) { const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = hintText; wrapper.appendChild(h); }
     target.appendChild(wrapper);
 }
 
-// 単語がクリックされたとき
 function handlePieceClick(wrapper) {
-    // すでに箱に入っている場合は、下のエリアに戻す
     if (wrapper.parentElement.classList.contains('slot')) {
         document.getElementById('piece-area').appendChild(wrapper);
-        if (activePieceWrapper === wrapper) {
-            activePieceWrapper.classList.remove('active-piece');
-            activePieceWrapper = null;
-        }
+        if (activePieceWrapper === wrapper) { activePieceWrapper.classList.remove('active-piece'); activePieceWrapper = null; }
         return;
     }
-
-    // すでにアクティブなものがあれば解除
-    if (activePieceWrapper) {
-        activePieceWrapper.classList.remove('active-piece');
-    }
-
-    // 選択状態にする
-    activePieceWrapper = wrapper;
-    activePieceWrapper.classList.add('active-piece');
+    if (activePieceWrapper) activePieceWrapper.classList.remove('active-piece');
+    activePieceWrapper = wrapper; activePieceWrapper.classList.add('active-piece');
 }
 
-// スロット（箱）または下のエリアがクリックされたとき
 function handleSlotClick(targetZone) {
     if (!activePieceWrapper) return;
-
-    // 選択中の単語を、クリックしたゾーンに移動
     targetZone.appendChild(activePieceWrapper);
-    activePieceWrapper.classList.remove('active-piece');
-    activePieceWrapper = null;
+    activePieceWrapper.classList.remove('active-piece'); activePieceWrapper = null;
 }
 
 function checkAnswer() {
@@ -340,8 +358,7 @@ function checkAnswer() {
     let correct = true;
     cols.forEach((col, idx) => {
         const ans = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim().toLowerCase();
-        const target = String(q[col]||"").trim().toLowerCase();
-        if (ans !== target) correct = false;
+        if (ans !== String(q[col]||"").trim().toLowerCase()) correct = false;
     });
     const fb = document.getElementById('feedback');
     if (correct) {
@@ -377,10 +394,8 @@ function showModelAnswer(q) {
             if (!found) { matchedPieces.push({ text: targetSentence, hint: "" }); targetSentence = ""; }
         }
         matchedPieces.forEach(p => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'piece-wrapper';
-            const div = document.createElement('div'); div.className = 'piece'; div.innerText = p.text;
-            wrapper.appendChild(div);
+            const wrapper = document.createElement('div'); wrapper.className = 'piece-wrapper';
+            const div = document.createElement('div'); div.className = 'piece'; div.innerText = p.text; wrapper.appendChild(div);
             if(p.hint){ const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = p.hint; wrapper.appendChild(h); }
             modelSlots[idx].appendChild(wrapper);
         });
@@ -388,7 +403,6 @@ function showModelAnswer(q) {
     document.getElementById('model-answer-section').style.display = "block";
     document.getElementById('check-btn').style.display = "none";
     document.getElementById('next-btn').style.display = "block";
-    if(currentMode === 'sort') document.getElementById('hint-btn').style.display = "none";
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -409,8 +423,7 @@ function showFinalResults() {
     resultList.innerHTML = "";
     currentSession.forEach(q => {
         const fullEn = [q.G, q.H, q.I, q.J, q.K].filter(v => v).join(' ');
-        const item = document.createElement('div');
-        item.className = 'result-item';
+        const item = document.createElement('div'); item.className = 'result-item';
         item.innerHTML = `<div class="result-jp">${q.E}</div><div class="result-en">${fullEn}</div>`;
         resultList.appendChild(item);
     });
@@ -426,7 +439,6 @@ function applyHint() {
     document.getElementById('hint-btn').style.display = "none";
 }
 
-// データの保存・読込 (変更なし)
 function exportData() {
     const dataStr = JSON.stringify(studyLogs, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -447,14 +459,6 @@ function importData() {
         reader.readAsText(file);
     };
     input.click();
-}
-
-function resetSelectedCategoryProgress() {
-    const selectedCats = Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value);
-    if (!selectedCats.length || !confirm("リセットしますか？")) return;
-    database.forEach(d => { if(selectedCats.includes(String(d.cat).trim())) { if(studyLogs[d.id]) studyLogs[d.id].streak = 0; }});
-    localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-    updateProgress();
 }
 
 function toggleAll(type, isCheck) {
