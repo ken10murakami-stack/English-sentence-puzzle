@@ -13,10 +13,12 @@
         .main-wrapper { width: 95%; max-width: 1400px; margin: 20px; display: flex; flex-direction: column; gap: 20px; position: relative; }
         .card { background: var(--card); border-radius: 15px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
+        /* 進捗バー */
         .progress-container { background: #eee; border-radius: 10px; height: 25px; width: 100%; margin: 10px 0; overflow: hidden; position: relative; }
         .progress-bar { background: var(--success); height: 100%; width: 0%; transition: width 0.3s ease; }
         .progress-text { position: absolute; width: 100%; text-align: center; line-height: 25px; font-size: 0.85rem; font-weight: bold; color: #333; }
 
+        /* フィルタセクション */
         .filter-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .filter-group { border: 1px solid #ddd; border-radius: 10px; padding: 15px; background: #fff; }
         .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
@@ -24,6 +26,7 @@
         .checkbox-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
         .checkbox-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; }
         
+        /* 進捗一覧表 */
         .status-table-wrapper { margin-top: 30px; overflow-x: auto; }
         .status-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 500px; }
         .status-table th, .status-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
@@ -32,6 +35,7 @@
         .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
         .cell-zero { color: #ccc; }
 
+        /* クイズ画面 */
         #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
         .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
         
@@ -123,11 +127,11 @@
         <div id="model-answer-section" class="model-answer-section">
             <div class="model-answer-label">【模範解答】</div>
             <div class="slot-container" id="model-drop-area">
-                <div class="slot"><div class="slot-label">⓪</div></div>
-                <div class="slot"><div class="slot-label">①</div></div>
-                <div class="slot"><div class="slot-label">②</div></div>
-                <div class="slot"><div class="slot-label">③</div></div>
-                <div class="slot"><div class="slot-label">④</div></div>
+                <div class="slot"><div class="slot-label">⓪疑問文のとき</div></div>
+                <div class="slot"><div class="slot-label">①だれは/何は</div></div>
+                <div class="slot"><div class="slot-label">②どうする/=</div></div>
+                <div class="slot"><div class="slot-label">③何を/何</div></div>
+                <div class="slot"><div class="slot-label">④いつ・どこで…</div></div>
             </div>
         </div>
 
@@ -136,11 +140,11 @@
         <div id="sort-area" class="sort-only">
             <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;">【あなたの解答】</div>
             <div class="slot-container" id="drop-area">
-                <div class="slot" data-col="G" onclick="handleSlotClick(this)"><div class="slot-label">⓪</div></div>
-                <div class="slot" data-col="H" onclick="handleSlotClick(this)"><div class="slot-label">①</div></div>
-                <div class="slot" data-col="I" onclick="handleSlotClick(this)"><div class="slot-label">②</div></div>
-                <div class="slot" data-col="J" onclick="handleSlotClick(this)"><div class="slot-label">③</div></div>
-                <div class="slot" data-col="K" onclick="handleSlotClick(this)"><div class="slot-label">④</div></div>
+                <div class="slot" data-col="G" onclick="handleSlotClick(this)"><div class="slot-label">⓪疑問文のとき</div></div>
+                <div class="slot" data-col="H" onclick="handleSlotClick(this)"><div class="slot-label">①だれは/何は</div></div>
+                <div class="slot" data-col="I" onclick="handleSlotClick(this)"><div class="slot-label">②どうする/=</div></div>
+                <div class="slot" data-col="J" onclick="handleSlotClick(this)"><div class="slot-label">③何を/何</div></div>
+                <div class="slot" data-col="K" onclick="handleSlotClick(this)"><div class="slot-label">④いつ・どこで・どのように</div></div>
             </div>
             <div class="piece-container" id="piece-area" onclick="handleSlotClick(this)"></div>
         </div>
@@ -247,7 +251,7 @@ function updateProgress() {
 function renderMatrix() {
     const head = document.getElementById('matrix-head');
     const body = document.getElementById('matrix-body');
-    const cats = [...new Set(database.map(d => String(d[cat] || d.cat).trim()))].sort();
+    const cats = [...new Set(database.map(d => String(d.cat).trim()))].sort();
     const lvs = [...new Set(database.map(d => String(d.lv).trim()))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
     head.innerHTML = `<th>文法項目</th>` + lvs.map(l => `<th>${l}</th>`).join('');
     body.innerHTML = cats.map(cat => {
@@ -280,7 +284,6 @@ function startLesson(mode) {
         else currentSession = currentSession.slice(0, 10);
         if(!currentSession.length) return alert("未完了の問題がありません！");
     } else {
-        // 書き取りモード：10問ランダム抽出
         currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 10);
     }
     
@@ -297,7 +300,6 @@ function showQuestion() {
     const q = currentSession[currentIndex];
     isHintUsed = false;
     
-    // 基本要素の初期化
     document.getElementById('quiz-counter').innerText = `${currentIndex + 1} / ${currentSession.length}`;
     document.getElementById('japanese-text').innerText = q.E;
     document.getElementById('feedback').innerText = "";
@@ -309,17 +311,16 @@ function showQuestion() {
     const checkBtn = document.getElementById('check-btn');
 
     if(currentMode === 'sort') {
-        // 並べ替えモードの表示設定
         sortOnlyEls.forEach(el => el.style.display = '');
         writingMsg.style.display = 'none';
         nextBtn.style.display = 'none';
         checkBtn.style.display = 'block';
         document.getElementById('hint-btn').style.display = 'block';
 
-        // スロットとピースの初期化
+        // スロットの中身だけを掃除し、ラベルを残す
         document.querySelectorAll('#drop-area .slot').forEach(s => {
-            const label = s.querySelector('.slot-label');
-            s.innerHTML = ""; s.appendChild(label);
+            const wrappers = s.querySelectorAll('.piece-wrapper');
+            wrappers.forEach(w => w.remove());
         });
         const area = document.getElementById('piece-area');
         area.innerHTML = "";
@@ -327,7 +328,6 @@ function showQuestion() {
         q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => rawWords.push(w)); });
         rawWords.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
     } else {
-        // 書き取りモードの表示設定
         sortOnlyEls.forEach(el => el.style.display = 'none');
         writingMsg.style.display = 'block';
         nextBtn.style.display = 'block';
@@ -365,7 +365,7 @@ function handleSlotClick(targetZone) {
 }
 
 function checkAnswer() {
-    if (currentMode !== 'sort') return; // 書き取りモードでは動作させない
+    if (currentMode !== 'sort') return;
     const q = currentSession[currentIndex];
     const slots = document.querySelectorAll('#drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
@@ -450,7 +450,10 @@ function applyHint() {
     isHintUsed = true;
     const q = currentSession[currentIndex];
     const area = document.getElementById('piece-area');
-    document.querySelectorAll('#drop-area .slot').forEach(s => { const label = s.querySelector('.slot-label'); s.innerHTML = ""; s.appendChild(label); });
+    document.querySelectorAll('#drop-area .slot').forEach(s => {
+        const wrappers = s.querySelectorAll('.piece-wrapper');
+        wrappers.forEach(w => w.remove());
+    });
     area.innerHTML = "";
     q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => { const [phrase, trans] = item.split(':'); createPiece(phrase.replace(/_/g, ' '), area, true, trans || ""); });
     document.getElementById('hint-btn').style.display = "none";
