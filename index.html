@@ -3,503 +3,326 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英語語順トレーニング</title>
+    <title>English Reading App</title>
     <style>
-        :root {
-            --primary: #2c3e50; --accent: #3498db; --success: #27ae60;
-            --error: #e74c3c; --hint: #e67e22; --bg: #f0f2f5; --card: #ffffff;
+        :root { --primary: #3498db; --success: #27ae60; --error: #e74c3c; --bg: #f4f7f6; --text: #333; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: var(--text); -webkit-tap-highlight-color: transparent; }
+        .container { max-width: 850px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); position: relative; }
+        
+        /* ホーム画面 */
+        .home-screen { text-align: center; }
+        .filter-group { margin: 25px 0; display: flex; flex-direction: column; gap: 15px; align-items: center; }
+        select { padding: 12px; width: 280px; border-radius: 8px; border: 1px solid #ddd; font-size: 1rem; background: white; }
+        .start-btn { background: var(--success); color: white; padding: 15px 50px; font-size: 1.2rem; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; }
+        
+        /* 達成率 */
+        .progress-container { margin-top: 20px; text-align: left; background: #fff; border: 1px solid #eee; padding: 15px; border-radius: 10px; font-size: 0.9rem; max-height: 250px; overflow-y: auto; }
+        .progress-item { display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #f9f9f9; padding-bottom: 3px; }
+        .progress-bar-bg { width: 100px; height: 8px; background: #eee; border-radius: 4px; overflow: hidden; margin-left: 10px; align-self: center; }
+        .progress-bar-fill { height: 100%; background: var(--success); }
+
+        .storage-controls { margin-top: 15px; display: flex; justify-content: center; gap: 10px; }
+        .btn-storage { background: #95a5a6; color: white; padding: 8px 15px; border-radius: 5px; border: none; font-size: 0.8rem; cursor: pointer; transition: 0.2s; }
+
+        /* ゲーム画面 */
+        .game-screen { display: none; }
+        .info-bar { display: flex; justify-content: space-between; color: #666; margin-bottom: 15px; font-size: 0.9rem; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+        .question-text { font-size: 1.25rem; line-height: 3.5; margin-bottom: 30px; padding: 25px; border: 1px solid #eee; border-radius: 12px; background: #fff; white-space: pre-wrap; }
+        .clickable-word { cursor: pointer; border-bottom: 1px dashed #3498db; color: #2980b9; padding: 0 1px; }
+
+        #word-tooltip {
+            position: absolute; display: none; background: rgba(0,0,0,0.9); color: #fff;
+            padding: 10px 15px; border-radius: 8px; font-size: 0.95rem; z-index: 2000;
+            pointer-events: none; text-align: center; min-width: 140px; transform: translateX(-50%);
         }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); margin: 0; display: flex; justify-content: center; overflow-x: hidden; }
-        .main-wrapper { width: 95%; max-width: 1400px; margin: 20px; display: flex; flex-direction: column; gap: 20px; position: relative; }
-        .card { background: var(--card); border-radius: 15px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
-        
-        /* 進捗バー */
-        .progress-container { background: #eee; border-radius: 10px; height: 25px; width: 100%; margin: 10px 0; overflow: hidden; position: relative; }
-        .progress-bar { background: var(--success); height: 100%; width: 0%; transition: width 0.3s ease; }
-        .progress-text { position: absolute; width: 100%; text-align: center; line-height: 25px; font-size: 0.85rem; font-weight: bold; color: #333; }
 
-        /* フィルタセクション */
-        .filter-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .filter-group { border: 1px solid #ddd; border-radius: 10px; padding: 15px; background: #fff; }
-        .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
-        .group-header h3 { margin: 0; font-size: 1.1rem; }
-        .checkbox-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
-        .checkbox-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; }
-        
-        /* 進捗一覧表 */
-        .status-table-wrapper { margin-top: 30px; overflow-x: auto; }
-        .status-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 500px; }
-        .status-table th, .status-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-        .status-table th { background: #f8f9fa; color: var(--primary); }
-        .status-table .cat-name { text-align: left; font-weight: bold; background: #fcfcfc; min-width: 150px; }
-        .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
-        .cell-zero { color: #ccc; }
+        .hole-zone {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 90px; height: 1.4em; padding: 0 8px; border-bottom: 2px solid #ccc;
+            margin: 0 4px; background: rgba(0,0,0,0.03); cursor: pointer; font-size: inherit;
+            vertical-align: middle; position: relative; top: -1px; transition: all 0.2s;
+        }
+        .hole-zone.active { border-bottom: 2px solid var(--primary); background: rgba(52, 152, 219, 0.1); }
+        .hole-zone.filled { border-bottom-color: transparent; background: transparent; }
+        .hole-zone.correct { color: var(--success); font-weight: bold; }
+        .hole-zone.incorrect { color: var(--error); border-bottom: 2px solid var(--error); }
 
-        /* クイズ画面 */
-        #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
-        .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
-        
-        .slot-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 15px 0; }
-        .slot { background: #fafafa; border: 2px dashed #bdc3c7; border-radius: 12px; min-height: 110px; padding: 10px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; cursor: pointer; transition: 0.2s; }
-        .slot:hover { background: #f0f7ff; border-color: var(--accent); }
-        .slot-label { width: 100%; font-size: 0.75rem; color: #7f8c8d; text-align: center; margin-bottom: 8px; background: #eee; padding: 4px 0; border-radius: 4px; font-weight: bold; pointer-events: none; }
-        
-        .model-answer-section { display: none; background: #fff3e0; border: 2px solid var(--hint); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
-        .model-answer-label { font-weight: bold; color: var(--hint); margin-bottom: 10px; text-align: center; }
+        .word-bank { display: flex; flex-wrap: wrap; gap: 10px; padding: 20px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 12px; min-height: 60px; justify-content: center; }
+        .word-chip { padding: 8px 18px; background: white; border: 1px solid #ced4da; border-radius: 20px; cursor: pointer; font-size: 1.1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); user-select: none; }
+        .word-chip.used { opacity: 0.2; cursor: default; }
 
-        .piece-container { background: #dfe6e9; padding: 25px; border-radius: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; min-height: 100px; }
-        .piece-wrapper { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
-        .piece { background: var(--accent); color: white; padding: 10px 18px; border-radius: 8px; font-weight: bold; box-shadow: 0 4px 0 #2980b9; font-size: 1.1rem; user-select: none; transition: 0.2s; }
-        .active-piece .piece { transform: translateY(-5px); box-shadow: 0 10px 15px rgba(52, 152, 219, 0.4); border: 2px solid white; background: #2980b9; }
-        .hint-label { font-size: 0.75rem; color: var(--hint); font-weight: bold; background: #fff; padding: 1px 6px; border-radius: 4px; border: 1px solid var(--hint); pointer-events: none; }
-
-        .action-bar { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
-        .btn { padding: 12px 35px; border: none; border-radius: 30px; cursor: pointer; font-size: 1.1rem; font-weight: bold; transition: 0.2s; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-success { background: var(--success); color: white; width: 250px; }
-        .btn-hint { background: var(--hint); color: white; }
-        .btn-next { background: var(--primary); color: white; }
-        .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
-        .btn-text { font-size: 0.75rem; color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
-        .btn-text-danger { font-size: 0.75rem; color: var(--error); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
-
-        .result-item { border-bottom: 2px solid #eee; padding: 20px 0; }
-        .result-jp { font-weight: bold; color: var(--primary); margin-bottom: 8px; font-size: 1.1rem; }
-        .result-en { color: var(--success); font-size: 1.2rem; font-weight: bold; }
-
-        #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+        .controls { text-align: center; margin-top: 30px; }
+        .btn-check { background: var(--primary); color: white; padding: 12px 45px; border-radius: 30px; border: none; font-size: 1.1rem; cursor: pointer; font-weight: bold; }
+        .btn-next { background: var(--success); color: white; padding: 12px 45px; border-radius: 30px; border: none; font-size: 1.1rem; cursor: pointer; font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
-<canvas id="confetti-canvas"></canvas>
-
-<div class="main-wrapper">
-    <div id="home-screen" class="card">
-        <h1>英語語順トレーニング</h1>
-        <div style="margin-bottom: 20px;">
-            <div style="display:flex; justify-content: space-between; align-items: flex-end;">
-                <span style="font-weight:bold; font-size:0.9rem;">現在の選択範囲の達成状況</span>
-                <span id="progress-stats" style="font-size:0.8rem; color:#666;">0 / 0 問完了 (0%)</span>
-            </div>
-            <div class="progress-container">
-                <div id="main-progress-bar" class="progress-bar"></div>
-                <div id="main-progress-text" class="progress-text">0%</div>
-            </div>
+<div class="container">
+    <div id="word-tooltip"></div>
+    <div id="home-screen" class="home-screen">
+        <h1>📝 English Reading App</h1>
+        <div class="filter-group">
+            <select id="grammar-select"><option value="all">すべての文法</option></select>
+            <select id="level-select" onchange="updateProgressDisplay()"><option value="all">すべてのレベル</option></select>
+            <button class="start-btn" onclick="startLesson()">学習をはじめる</button>
         </div>
-
-        <div class="filter-section">
-            <div class="filter-group"><div class="group-header"><h3>学年</h3></div><div id="filter-grade" class="checkbox-list"></div></div>
-            <div class="filter-group">
-                <div class="group-header"><h3>文法項目</h3><div style="display:flex; gap:8px;"><button class="btn-text" onclick="toggleAll('cat', true)">全選択</button><button class="btn-text" onclick="toggleAll('cat', false)">全解除</button></div></div>
-                <div id="filter-cat" class="checkbox-list"></div>
-                <div style="margin-top:10px; text-align:right;"><button class="btn-text-danger" onclick="resetFilteredProgress()">選択中の範囲の記録をリセット</button></div>
-            </div>
-            <div class="filter-group"><div class="group-header"><h3>レベル</h3></div><div id="filter-lv" class="checkbox-list"></div></div>
+        <div id="progress-area" class="progress-container">達成率を計算中...</div>
+        <div class="storage-controls">
+            <button class="btn-storage" onclick="saveProgressAsJSON()">JSONで保存</button>
+            <button class="btn-storage" onclick="document.getElementById('upload-input').click()">JSONを読み込み</button>
+            <input type="file" id="upload-input" style="display:none" accept=".json" onchange="loadProgressFromJSON(event)">
         </div>
-
-        <div class="action-bar" style="flex-wrap: wrap;">
-            <button class="btn btn-primary" onclick="startLesson('sort')">10問並べ替え開始</button>
-            <button class="btn btn-success" style="background:var(--primary);" onclick="startLesson('writing')">10問書き取り練習</button>
-            <div style="width:100%; display:flex; justify-content:center; gap:15px; margin-top:10px;">
-                <button class="btn btn-outline" onclick="exportData()">記録保存</button>
-                <button class="btn btn-outline" onclick="importData()">記録読込</button>
-            </div>
-        </div>
-
-        <div class="status-table-wrapper">
-            <h3 style="margin-bottom:10px; font-size:1rem; border-left:4px solid var(--accent); padding-left:10px;">文法項目×レベル別 達成状況</h3>
-            <table class="status-table" id="matrix-table">
-                <thead><tr id="matrix-head"></tr></thead>
-                <tbody id="matrix-body"></tbody>
-            </table>
-        </div>
+        <div id="status-msg" style="margin-top:10px;">データを読み込み中...</div>
     </div>
 
-    <div id="quiz-screen">
-        <div style="display:flex; justify-content: space-between; align-items:center;">
-            <button class="btn-mini-reset" style="padding:8px 15px;" onclick="location.reload()">◀ ホーム</button>
-            <div id="quiz-counter" style="font-weight:bold;">1 / 10</div>
-            <button class="btn btn-hint sort-only" id="hint-btn" onclick="applyHint()">ヒント</button>
+    <div id="game-screen" class="game-screen">
+        <div class="info-bar"><span id="info-grammar"></span><span id="info-level"></span></div>
+        <div id="question-area" class="question-text"></div>
+        <div id="word-bank" class="word-bank"></div>
+        <div class="controls">
+            <div id="game-msg" style="margin-bottom:15px; min-height:1.5rem; font-weight:bold;"></div>
+            <button id="check-btn" class="btn-check" onclick="checkAnswers()">答え合わせ</button>
+            <button id="next-btn" class="btn-next" onclick="loadNextQuestion()">次の問題へ ➔</button><br>
+            <button onclick="showHome()" style="background:#95a5a6; color:white; border:none; padding:8px 20px; border-radius:5px; margin-top:20px; cursor:pointer;">戻る</button>
         </div>
-        <div id="feedback" style="text-align:center; font-size:1.8rem; font-weight:bold; height:40px;"></div>
-        
-        <div id="model-answer-section" class="model-answer-section">
-            <div class="model-answer-label">【模範解答】</div>
-            <div class="slot-container" id="model-drop-area">
-                <div class="slot"><div class="slot-label">⓪疑問文のとき</div></div>
-                <div class="slot"><div class="slot-label">①だれは/何は</div></div>
-                <div class="slot"><div class="slot-label">②どうする/=</div></div>
-                <div class="slot"><div class="slot-label">③何を/何</div></div>
-                <div class="slot"><div class="slot-label">④いつ・どこで…</div></div>
-            </div>
-        </div>
-
-        <div class="japanese-box" id="japanese-text"></div>
-        
-        <div id="sort-area" class="sort-only">
-            <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;">【あなたの解答】</div>
-            <div class="slot-container" id="drop-area">
-                <div class="slot" data-col="G" onclick="handleSlotClick(this)"><div class="slot-label">⓪疑問文のとき</div></div>
-                <div class="slot" data-col="H" onclick="handleSlotClick(this)"><div class="slot-label">①だれは/何は</div></div>
-                <div class="slot" data-col="I" onclick="handleSlotClick(this)"><div class="slot-label">②どうする/=</div></div>
-                <div class="slot" data-col="J" onclick="handleSlotClick(this)"><div class="slot-label">③何を/何</div></div>
-                <div class="slot" data-col="K" onclick="handleSlotClick(this)"><div class="slot-label">④いつ・どこで・どのように</div></div>
-            </div>
-            <div class="piece-container" id="piece-area" onclick="handleSlotClick(this)"></div>
-        </div>
-
-        <div id="writing-msg" style="display:none; text-align:center; color:#666; margin-top:20px; font-style:italic;">
-            ノートに英文を書いてから「次の問題へ」を押してください。
-        </div>
-
-        <div class="action-bar">
-            <button id="check-btn" class="btn btn-success sort-only" onclick="checkAnswer()">答え合わせ</button>
-            <button id="next-btn" class="btn btn-next" onclick="goToNextQuestion()" style="display:none;">次の問題へ ▶</button>
-        </div>
-    </div>
-
-    <div id="result-screen" class="card">
-        <h2 style="text-align:center;">書き取り練習 結果一覧</h2>
-        <div id="result-list"></div>
-        <div class="action-bar"><button class="btn btn-primary" onclick="location.reload()">ホームへ戻る</button></div>
     </div>
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxRSBn90LvvtW4IYmj5PZPDV1AhuUXQgitbFl_OAnyt86wozd5CPvWsql-U6b9OcBjNfQ/exec';
-let database = [];
-let studyLogs = JSON.parse(localStorage.getItem('eng_v5_logs')) || {};
-let currentSession = [];
-let currentIndex = 0;
-let isHintUsed = false;
-let currentMode = 'sort';
-let activePieceWrapper = null;
-let confettiActive = false;
+    const API_URL = 'https://script.google.com/macros/s/AKfycbyDuBRYj2B32y1sprC37z7f5Zqm4iG-GbGcKo4_NPK9oLsEI8HAaO54SGuuMwm3eHKb/exec'; 
+    let allQuestions = [], dictionary = {}, filteredQuestions = [], currentData = null, hideTimeout = null;
+    let activeHoleNum = null, questionWords = [], longPressTimer = null;
+    let solvedIds = JSON.parse(localStorage.getItem('solved_questions') || "[]");
 
-// --- 紙吹雪 ---
-const canvas = document.getElementById('confetti-canvas');
-const ctx = canvas.getContext('2d');
-let particles = [];
-function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.addEventListener('resize', resizeCanvas); resizeCanvas();
-class Particle {
-    constructor() {
-        this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height - canvas.height;
-        this.size = Math.random() * 8 + 4; this.speedY = Math.random() * 4 + 2; this.speedX = Math.random() * 2 - 1;
-        this.color = `hsl(${Math.random() * 360}, 75%, 60%)`; this.rotation = Math.random() * 360; this.rotationSpeed = Math.random() * 8 - 4; this.life = 1.0;
+    async function init() {
+        try {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            allQuestions = data.questions.map((q, i) => ({...q, id: q.id || `q-${i}`}));
+            dictionary = data.dictionary;
+            populateSelect('grammar-select', 'grammar');
+            populateSelect('level-select', 'level');
+            updateProgressDisplay();
+            document.getElementById('status-msg').innerText = "準備完了！";
+        } catch (e) { document.getElementById('status-msg').innerText = "通信エラー"; }
     }
-    update() { this.y += this.speedY; this.x += this.speedX; this.rotation += this.rotationSpeed; this.life -= 0.005; }
-    draw() { ctx.save(); ctx.globalAlpha = this.life; ctx.translate(this.x, this.y); ctx.rotate(this.rotation * Math.PI / 180); ctx.fillStyle = this.color; ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size); ctx.restore(); }
-}
-function launchConfetti() { particles = []; confettiActive = true; for (let i = 0; i < 70; i++) particles.push(new Particle()); animateConfetti(); }
-function stopConfetti() { confettiActive = false; particles = []; ctx.clearRect(0, 0, canvas.width, canvas.height); }
-function animateConfetti() { if(!confettiActive) return; ctx.clearRect(0, 0, canvas.width, canvas.height); particles.forEach((p, i) => { p.update(); p.draw(); if (p.y > canvas.height || p.life <= 0) particles.splice(i, 1); }); if (particles.length > 0) requestAnimationFrame(animateConfetti); else confettiActive = false; }
 
-// --- ロジック ---
-async function loadData() {
-    try {
-        const res = await fetch(GAS_URL);
-        database = await res.json();
-        setupFilters();
-        updateProgress();
-    } catch (e) { console.error(e); }
-}
-
-function setupFilters() {
-    const savedFilters = JSON.parse(localStorage.getItem('eng_v5_filter_settings')) || {};
-    const types = { grade: 'filter-grade', cat: 'filter-cat', lv: 'filter-lv' };
-    Object.keys(types).forEach(key => {
-        const container = document.getElementById(types[key]);
-        const items = [...new Set(database.map(d => String(d[key] || "").trim()))].filter(v => v !== "");
-        container.innerHTML = ""; 
-        items.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'checkbox-item';
-            const isChecked = savedFilters[key] ? savedFilters[key].includes(item) : true;
-            div.innerHTML = `<label><input type="checkbox" value="${item}" ${isChecked ? "checked" : ""} data-type="${key}" onchange="onFilterChange()"> ${item}</label>`;
-            container.appendChild(div);
+    function populateSelect(id, key) {
+        const select = document.getElementById(id);
+        const values = [...new Set(allQuestions.map(q => q[key] ? q[key].toString().trim() : ""))].filter(v => v !== "");
+        values.sort().forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v; opt.innerText = v; select.appendChild(opt);
         });
-    });
-}
-
-function onFilterChange() { 
-    const settings = {
-        grade: Array.from(document.querySelectorAll('input[data-type="grade"]:checked')).map(i => i.value),
-        cat: Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value),
-        lv: Array.from(document.querySelectorAll('input[data-type="lv"]:checked')).map(i => i.value)
-    };
-    localStorage.setItem('eng_v5_filter_settings', JSON.stringify(settings));
-    updateProgress(); 
-}
-
-function updateProgress() {
-    const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
-    const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
-    if (pool.length > 0) {
-        const completedCount = pool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
-        const percent = Math.floor((completedCount / pool.length) * 100);
-        document.getElementById('main-progress-bar').style.width = `${percent}%`;
-        document.getElementById('main-progress-text').innerText = `${percent}%`;
-        document.getElementById('progress-stats').innerText = `${completedCount} / ${pool.length} 問完了 (${percent}%)`;
-    } else {
-        document.getElementById('progress-stats').innerText = "0 / 0 問完了 (0%)";
     }
-    renderMatrix();
-}
 
-function renderMatrix() {
-    const head = document.getElementById('matrix-head');
-    const body = document.getElementById('matrix-body');
-    const cats = [...new Set(database.map(d => String(d.cat).trim()))].sort();
-    const lvs = [...new Set(database.map(d => String(d.lv).trim()))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
-    head.innerHTML = `<th>文法項目</th>` + lvs.map(l => `<th>${l}</th>`).join('');
-    body.innerHTML = cats.map(cat => {
-        let row = `<tr><td class="cat-name">${cat}</td>`;
-        lvs.forEach(lv => {
-            const cellPool = database.filter(d => String(d.cat).trim() === cat && String(d.lv).trim() === lv);
-            if (cellPool.length === 0) row += `<td>-</td>`;
-            else {
-                const done = cellPool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
-                const pct = Math.floor((done / cellPool.length) * 100);
-                row += `<td class="${pct===100?'cell-perfect':(done===0?'cell-zero':'')}">${done}/${cellPool.length}<br><small>${pct}%</small></td>`;
-            }
+    function updateProgressDisplay() {
+        const selectedLevel = document.getElementById('level-select').value;
+        const progressArea = document.getElementById('progress-area');
+        progressArea.innerHTML = `<strong>【${selectedLevel === 'all' ? '全レベル' : 'レベル ' + selectedLevel}】達成率</strong><br>`;
+        const targetQuestions = allQuestions.filter(q => selectedLevel === 'all' || q.level == selectedLevel);
+        const grammars = [...new Set(targetQuestions.map(q => q.grammar))].filter(g => g);
+        grammars.forEach(g => {
+            const qsInGrammar = targetQuestions.filter(q => q.grammar === g);
+            const solvedInGrammar = qsInGrammar.filter(q => solvedIds.includes(q.id));
+            const percent = Math.round((solvedInGrammar.length / qsInGrammar.length) * 100) || 0;
+            progressArea.innerHTML += `<div class="progress-item"><span>${g} (${solvedInGrammar.length}/${qsInGrammar.length})</span><div style="display:flex;"><span>${percent}%</span><div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${percent}%"></div></div></div></div>`;
         });
-        return row + `</tr>`;
-    }).join('');
-}
-
-function startLesson(mode) {
-    currentMode = mode;
-    const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
-    const filterPool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
-    
-    if(!filterPool.length) return alert("条件に合う問題がありません。");
-
-    if(mode === 'sort') {
-        const c0 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
-        const c1 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
-        currentSession = [...c0];
-        if (currentSession.length < 10) currentSession = [...currentSession, ...c1.slice(0, 10 - currentSession.length)];
-        else currentSession = currentSession.slice(0, 10);
-        if(!currentSession.length) return alert("未完了の問題がありません！");
-    } else {
-        currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 10);
     }
-    
-    currentIndex = 0;
-    document.getElementById('home-screen').style.display='none';
-    document.getElementById('quiz-screen').style.display='flex';
-    document.getElementById('result-screen').style.display='none';
-    showQuestion();
-}
 
-function showQuestion() {
-    stopConfetti();
-    activePieceWrapper = null;
-    const q = currentSession[currentIndex];
-    isHintUsed = false;
-    
-    document.getElementById('quiz-counter').innerText = `${currentIndex + 1} / ${currentSession.length}`;
-    document.getElementById('japanese-text').innerText = q.E;
-    document.getElementById('feedback').innerText = "";
-    document.getElementById('model-answer-section').style.display = "none";
-    
-    const sortOnlyEls = document.querySelectorAll('.sort-only');
-    const writingMsg = document.getElementById('writing-msg');
-    const nextBtn = document.getElementById('next-btn');
-    const checkBtn = document.getElementById('check-btn');
-
-    if(currentMode === 'sort') {
-        sortOnlyEls.forEach(el => el.style.display = '');
-        writingMsg.style.display = 'none';
-        nextBtn.style.display = 'none';
-        checkBtn.style.display = 'block';
-        document.getElementById('hint-btn').style.display = 'block';
-
-        // スロットの中身だけを掃除し、ラベルを残す
-        document.querySelectorAll('#drop-area .slot').forEach(s => {
-            const wrappers = s.querySelectorAll('.piece-wrapper');
-            wrappers.forEach(w => w.remove());
-        });
-        const area = document.getElementById('piece-area');
-        area.innerHTML = "";
-        let rawWords = [];
-        q.D.split(' ').forEach(item => { item.split(':')[0].split('_').forEach(w => rawWords.push(w)); });
-        rawWords.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
-    } else {
-        sortOnlyEls.forEach(el => el.style.display = 'none');
-        writingMsg.style.display = 'block';
-        nextBtn.style.display = 'block';
-        checkBtn.style.display = 'none';
+    function saveProgressAsJSON() {
+        const dataStr = JSON.stringify({ solved_questions: solvedIds }, null, 2);
+        const blob = new Blob([dataStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url; link.download = "english_app_progress.json"; link.click();
+        URL.revokeObjectURL(url);
     }
-}
 
-function createPiece(text, target, hasHint, hintText = "") {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'piece-wrapper';
-    wrapper.onclick = (e) => { e.stopPropagation(); handlePieceClick(wrapper); };
-    const p = document.createElement('div'); p.className = 'piece'; p.innerText = text; 
-    wrapper.appendChild(p);
-    if(hasHint && hintText) {
-        const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = hintText;
-        wrapper.appendChild(h);
-    }
-    target.appendChild(wrapper);
-}
-
-function handlePieceClick(wrapper) {
-    if (wrapper.parentElement.classList.contains('slot')) {
-        document.getElementById('piece-area').appendChild(wrapper);
-        if (activePieceWrapper === wrapper) { activePieceWrapper.classList.remove('active-piece'); activePieceWrapper = null; }
-        return;
-    }
-    if (activePieceWrapper) activePieceWrapper.classList.remove('active-piece');
-    activePieceWrapper = wrapper; activePieceWrapper.classList.add('active-piece');
-}
-
-function handleSlotClick(targetZone) {
-    if (!activePieceWrapper) return;
-    targetZone.appendChild(activePieceWrapper);
-    activePieceWrapper.classList.remove('active-piece'); activePieceWrapper = null;
-}
-
-function checkAnswer() {
-    if (currentMode !== 'sort') return;
-    const q = currentSession[currentIndex];
-    const slots = document.querySelectorAll('#drop-area .slot');
-    const cols = ['G', 'H', 'I', 'J', 'K'];
-    let correct = true;
-    cols.forEach((col, idx) => {
-        const ans = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim().toLowerCase();
-        if (ans !== String(q[col]||"").trim().toLowerCase()) correct = false;
-    });
-
-    const fb = document.getElementById('feedback');
-    if (correct) {
-        fb.innerText = "⭕ 正解！"; fb.style.color = "var(--success)"; launchConfetti();
-        if (!isHintUsed) { if(!studyLogs[q.id]) studyLogs[q.id]={streak:0}; studyLogs[q.id].streak++; }
-        localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-        setTimeout(goToNextQuestion, 1500);
-    } else {
-        fb.innerText = "❌ 不正解"; fb.style.color = "var(--error)";
-        if(studyLogs[q.id]) studyLogs[q.id].streak = 0;
-        localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-        showModelAnswer(q); 
-    }
-}
-
-function showModelAnswer(q) {
-    const modelSlots = document.querySelectorAll('#model-drop-area .slot');
-    const cols = ['G', 'H', 'I', 'J', 'K'];
-    const definedPieces = q.D.split(' ').map(item => { const [phrase, hint] = item.split(':'); return { text: phrase.replace(/_/g, ' ').trim(), hint: hint || "" }; });
-    
-    cols.forEach((col, idx) => {
-        const label = modelSlots[idx].querySelector('.slot-label');
-        modelSlots[idx].innerHTML = ""; modelSlots[idx].appendChild(label);
-        let targetSentence = String(q[col]||"").trim();
-        if (!targetSentence) return;
-        let matchedPieces = [];
-        const sortedDefinitions = [...definedPieces].sort((a,b) => b.text.length - a.text.length);
-        while (targetSentence.length > 0) {
-            let found = false;
-            for (let p of sortedDefinitions) {
-                const regex = new RegExp('^' + p.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-                if (regex.test(targetSentence)) { matchedPieces.push(p); targetSentence = targetSentence.substring(p.text.length).trim(); found = true; break; }
-            }
-            if (!found) { matchedPieces.push({ text: targetSentence, hint: "" }); targetSentence = ""; }
-        }
-        matchedPieces.forEach(p => {
-            const wrapper = document.createElement('div'); wrapper.className = 'piece-wrapper';
-            const div = document.createElement('div'); div.className = 'piece'; div.innerText = p.text; wrapper.appendChild(div);
-            if(p.hint){ const h = document.createElement('div'); h.className = 'hint-label'; h.innerText = p.hint; wrapper.appendChild(h); }
-            modelSlots[idx].appendChild(wrapper);
-        });
-    });
-    document.getElementById('model-answer-section').style.display = "block";
-    document.getElementById('check-btn').style.display = "none";
-    document.getElementById('next-btn').style.display = "block";
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function goToNextQuestion() {
-    stopConfetti();
-    if(++currentIndex < currentSession.length) {
-        showQuestion();
-    } else {
-        if(currentMode === 'writing') showFinalResults();
-        else { alert("10問終了！"); location.reload(); }
-    }
-}
-
-function showFinalResults() {
-    document.getElementById('quiz-screen').style.display = 'none';
-    const resultScreen = document.getElementById('result-screen');
-    const resultList = document.getElementById('result-list');
-    resultScreen.style.display = 'flex';
-    resultList.innerHTML = "";
-    currentSession.forEach(q => {
-        const fullEn = [q.G, q.H, q.I, q.J, q.K].filter(v => v).join(' ');
-        const item = document.createElement('div'); item.className = 'result-item';
-        item.innerHTML = `<div class="result-jp">${q.E}</div><div class="result-en">${fullEn}</div>`;
-        resultList.appendChild(item);
-    });
-}
-
-function applyHint() {
-    isHintUsed = true;
-    const q = currentSession[currentIndex];
-    const area = document.getElementById('piece-area');
-    document.querySelectorAll('#drop-area .slot').forEach(s => {
-        const wrappers = s.querySelectorAll('.piece-wrapper');
-        wrappers.forEach(w => w.remove());
-    });
-    area.innerHTML = "";
-    q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => { const [phrase, trans] = item.split(':'); createPiece(phrase.replace(/_/g, ' '), area, true, trans || ""); });
-    document.getElementById('hint-btn').style.display = "none";
-}
-
-function exportData() {
-    const dataStr = JSON.stringify(studyLogs, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `record.json`; a.click();
-}
-
-function importData() {
-    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
-    input.onchange = e => {
-        const file = e.target.files[0];
+    function loadProgressFromJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
         const reader = new FileReader();
-        reader.onload = event => {
-            studyLogs = JSON.parse(event.target.result);
-            localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-            location.reload();
+        reader.onload = function(e) {
+            try {
+                const json = JSON.parse(e.target.result);
+                if (json.solved_questions && Array.isArray(json.solved_questions)) {
+                    solvedIds = json.solved_questions;
+                    localStorage.setItem('solved_questions', JSON.stringify(solvedIds));
+                    updateProgressDisplay();
+                    alert("読み込みました！");
+                }
+            } catch (err) { alert("エラー"); }
         };
         reader.readAsText(file);
-    };
-    input.click();
-}
+    }
 
-function resetFilteredProgress() {
-    const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
-    if (!getSel('grade').length || !getSel('cat').length || !getSel('lv').length) return alert("条件をすべて選択してください。");
-    if (!confirm("リセットしますか？")) return;
-    database.forEach(d => {
-        if (getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim())) {
-            if (studyLogs[d.id]) studyLogs[d.id].streak = 0;
+    function startLesson() {
+        const gV = document.getElementById('grammar-select').value;
+        const lV = document.getElementById('level-select').value;
+        filteredQuestions = allQuestions.filter(q => (gV === 'all' || q.grammar == gV) && (lV === 'all' || q.level == lV));
+        if (filteredQuestions.length === 0) return alert("問題なし");
+        document.getElementById('home-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+        loadNextQuestion();
+    }
+
+    function loadNextQuestion() {
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('check-btn').style.display = 'inline-block';
+        document.getElementById('game-msg').innerText = "";
+        activeHoleNum = null; questionWords = [];
+        currentData = filteredQuestions[Math.floor(Math.random() * filteredQuestions.length)];
+        document.getElementById('info-grammar').innerText = `ターゲット: ${currentData.grammar}`;
+        document.getElementById('info-level').innerText = `レベル: ${currentData.level}`;
+        renderQuestion(currentData);
+    }
+
+    function renderQuestion(item) {
+        const qArea = document.getElementById('question-area');
+        let text = item.text.replace(/[\(（](\d+)[\)）]/g, "___HOLE_$1___");
+        const dictKeys = Object.keys(dictionary).sort((a, b) => b.length - a.length);
+        dictKeys.forEach(phrase => {
+            if (phrase.includes(" ")) {
+                const regex = new RegExp(`(^|[^a-zA-Z'’])${phrase}($|[^a-zA-Z'’])`, 'gi');
+                text = text.replace(regex, (match, p1, p2) => {
+                    const foundText = match.slice(p1.length, match.length - p2.length);
+                    return `${p1}__PHRASE_${phrase.replace(/ /g, "_")}_[${foundText}]__${p2}`;
+                });
+            }
+        });
+
+        let parts = text.split(/(___HOLE_\d+___|__PHRASE_.*?__|[a-zA-Z'’]+)/);
+        qArea.innerHTML = "";
+        parts.forEach(part => {
+            if (!part) return;
+            if (part.startsWith("___HOLE_")) {
+                const num = part.match(/\d+/)[0];
+                const span = document.createElement('span');
+                span.className = 'hole-zone'; span.id = `hole-${num}`; span.dataset.holeNum = num;
+                span.onclick = () => { if(document.getElementById('next-btn').style.display !== 'inline-block') setActiveHole(num); };
+                qArea.appendChild(span);
+            } else if (part.startsWith("__PHRASE_")) {
+                const m = part.match(/^__PHRASE_(.*?)_\[(.*?)\]__$/);
+                const key = m[1].replace(/_/g, " ").toLowerCase();
+                const span = document.createElement('span');
+                span.className = 'clickable-word'; span.innerText = m[2];
+                span.onclick = (e) => showDict(e, key);
+                qArea.appendChild(span);
+            } else if (part.match(/^[a-zA-Z'’]+$/)) {
+                const key = part.toLowerCase().replace(/[’]/g, "'");
+                if (dictionary[key]) {
+                    const span = document.createElement('span');
+                    span.className = 'clickable-word'; span.innerText = part;
+                    span.onclick = (e) => showDict(e, key);
+                    qArea.appendChild(span);
+                } else { qArea.appendChild(document.createTextNode(part)); }
+            } else { qArea.appendChild(document.createTextNode(part)); }
+        });
+        generateWordBank(item);
+    }
+
+    function generateWordBank(item) {
+        const bank = document.getElementById('word-bank');
+        bank.innerHTML = ""; questionWords = [];
+        for(let i=1; i<=10; i++) if(item['ans'+i]) questionWords.push({ word: item['ans'+i].toString().trim(), used: false });
+        if (item.dummy) item.dummy.toString().split(',').forEach(d => { if(d.trim()) questionWords.push({ word: d.trim(), used: false }); });
+        
+        questionWords.sort(() => Math.random() - 0.5).forEach((wordObj, i) => {
+            const chip = document.createElement('div');
+            chip.className = 'word-chip'; chip.innerText = wordObj.word; chip.id = `chip-${i}`;
+            
+            // 通常タップ：単語の入力
+            chip.onclick = () => selectWordForHole(i);
+            
+            // 長押し/右クリック：辞書表示
+            chip.oncontextmenu = (e) => { e.preventDefault(); showDict(e, wordObj.word.toLowerCase().replace(/[’]/g, "'")); };
+            chip.ontouchstart = () => { longPressTimer = setTimeout(() => showDictFromTouch(chip, wordObj.word), 600); };
+            chip.ontouchend = () => { clearTimeout(longPressTimer); };
+
+            bank.appendChild(chip);
+        });
+    }
+
+    function setActiveHole(num) {
+        document.querySelectorAll('.hole-zone').forEach(h => h.classList.remove('active'));
+        const hole = document.getElementById(`hole-${num}`);
+        if (hole.classList.contains('filled')) {
+            const oldWord = hole.innerText;
+            hole.innerText = ""; hole.classList.remove('filled', 'correct', 'incorrect');
+            const idx = questionWords.findIndex(w => w.word === oldWord && w.used);
+            if(idx !== -1) { questionWords[idx].used = false; document.getElementById(`chip-${idx}`).classList.remove('used'); }
         }
-    });
-    localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
-    updateProgress();
-}
+        hole.classList.add('active'); activeHoleNum = num;
+    }
 
-function toggleAll(type, isCheck) {
-    document.querySelectorAll(`input[data-type="${type}"]`).forEach(b => b.checked = isCheck);
-    onFilterChange();
-}
+    function selectWordForHole(idx) {
+        if (activeHoleNum === null || questionWords[idx].used || document.getElementById('next-btn').style.display === 'inline-block') return;
+        const hole = document.getElementById(`hole-${activeHoleNum}`);
+        hole.innerText = questionWords[idx].word;
+        hole.classList.add('filled'); hole.classList.remove('active');
+        questionWords[idx].used = true; document.getElementById(`chip-${idx}`).classList.add('used');
+        activeHoleNum = null;
+    }
 
-window.onload = loadData;
+    // モバイル用タッチ位置取得
+    function showDictFromTouch(el, word) {
+        const rect = el.getBoundingClientRect();
+        const fakeEvent = {
+            stopPropagation: () => {},
+            target: el,
+            pageXOffset: window.pageXOffset,
+            pageYOffset: window.pageYOffset
+        };
+        showDict(fakeEvent, word.toLowerCase().replace(/[’]/g, "'"));
+    }
+
+    function showDict(event, key) {
+        if (event.stopPropagation) event.stopPropagation();
+        const cleanKey = key.toLowerCase().replace(/[’]/g, "'");
+        const data = dictionary[cleanKey]; 
+        if (!data) return;
+        const tooltip = document.getElementById('word-tooltip');
+        tooltip.innerHTML = (data.read ? `<small>${data.read}</small><br>` : "") + data.mean;
+        tooltip.style.display = 'block';
+        const rect = event.target.getBoundingClientRect();
+        tooltip.style.left = (rect.left + window.pageXOffset + rect.width/2) + 'px';
+        tooltip.style.top = (rect.top + window.pageYOffset - 40) + 'px';
+        if (hideTimeout) clearTimeout(hideTimeout);
+        hideTimeout = setTimeout(() => tooltip.style.display = 'none', 3000);
+    }
+
+    function checkAnswers() {
+        const holes = document.querySelectorAll('.hole-zone');
+        let allCorrect = true;
+        holes.forEach(hole => {
+            if (!hole.classList.contains('filled')) { allCorrect = false; return; }
+            const user = hole.innerText.toLowerCase().trim().replace(/[’]/g, "'");
+            const correct = currentData['ans'+hole.dataset.holeNum].toString().toLowerCase().trim().replace(/[’]/g, "'");
+            if (user === correct) { hole.classList.add('correct'); hole.classList.remove('incorrect'); }
+            else { 
+                hole.classList.add('incorrect'); allCorrect = false;
+                setTimeout(() => {
+                    if (hole.classList.contains('incorrect')) {
+                        const word = hole.innerText; hole.innerText = ""; hole.classList.remove('filled', 'incorrect');
+                        const idx = questionWords.findIndex(w => w.word === word && w.used);
+                        if(idx !== -1) { questionWords[idx].used = false; document.getElementById(`chip-${idx}`).classList.remove('used'); }
+                    }
+                }, 1500);
+            }
+        });
+        if (allCorrect && holes.length > 0) {
+            document.getElementById('game-msg').innerHTML = "<span style='color:green'>Excellent! 正解です！</span>";
+            document.getElementById('check-btn').style.display = 'none';
+            document.getElementById('next-btn').style.display = 'inline-block';
+            if (!solvedIds.includes(currentData.id)) { solvedIds.push(currentData.id); localStorage.setItem('solved_questions', JSON.stringify(solvedIds)); }
+        } else if (holes.length > 0) { document.getElementById('game-msg').innerHTML = "<span style='color:red'>間違いがあります。</span>"; }
+    }
+
+    function showHome() { updateProgressDisplay(); document.getElementById('home-screen').style.display = 'block'; document.getElementById('game-screen').style.display = 'none'; }
+    document.onclick = () => document.getElementById('word-tooltip').style.display = 'none';
+    init();
 </script>
 </body>
 </html>
