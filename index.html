@@ -13,12 +13,10 @@
         .main-wrapper { width: 95%; max-width: 1400px; margin: 20px; display: flex; flex-direction: column; gap: 20px; position: relative; }
         .card { background: var(--card); border-radius: 15px; padding: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
         
-        /* 進捗バー */
         .progress-container { background: #eee; border-radius: 10px; height: 25px; width: 100%; margin: 10px 0; overflow: hidden; position: relative; }
         .progress-bar { background: var(--success); height: 100%; width: 0%; transition: width 0.3s ease; }
         .progress-text { position: absolute; width: 100%; text-align: center; line-height: 25px; font-size: 0.85rem; font-weight: bold; color: #333; }
 
-        /* フィルタセクション */
         .filter-section { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .filter-group { border: 1px solid #ddd; border-radius: 10px; padding: 15px; background: #fff; }
         .group-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 2px solid #f0f0f0; padding-bottom: 5px; }
@@ -26,7 +24,6 @@
         .checkbox-list { max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
         .checkbox-item { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; padding: 3px 0; }
         
-        /* 進捗一覧表 */
         .status-table-wrapper { margin-top: 30px; overflow-x: auto; }
         .status-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 500px; }
         .status-table th, .status-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
@@ -35,7 +32,6 @@
         .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
         .cell-zero { color: #ccc; }
 
-        /* クイズ画面 */
         #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
         .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
         
@@ -75,6 +71,7 @@
 <canvas id="confetti-canvas"></canvas>
 
 <div class="main-wrapper">
+    <!-- ホーム画面 -->
     <div id="home-screen" class="card">
         <h1>英語語順トレーニング</h1>
         <div style="margin-bottom: 20px;">
@@ -100,7 +97,7 @@
 
         <div class="action-bar" style="flex-wrap: wrap;">
             <button class="btn btn-primary" onclick="startLesson('sort')">10問並べ替え開始</button>
-            <button class="btn btn-success" style="background:var(--primary);" onclick="startLesson('writing')">10問書き取り練習</button>
+            <button class="btn btn-success" style="background:var(--primary);" onclick="startLesson('writing')">5問書き取り練習</button>
             <div style="width:100%; display:flex; justify-content:center; gap:15px; margin-top:10px;">
                 <button class="btn btn-outline" onclick="exportData()">記録保存</button>
                 <button class="btn btn-outline" onclick="importData()">記録読込</button>
@@ -116,6 +113,7 @@
         </div>
     </div>
 
+    <!-- クイズ画面 -->
     <div id="quiz-screen">
         <div style="display:flex; justify-content: space-between; align-items:center;">
             <button class="btn-mini-reset" style="padding:8px 15px;" onclick="location.reload()">◀ ホーム</button>
@@ -159,6 +157,7 @@
         </div>
     </div>
 
+    <!-- 結果画面 -->
     <div id="result-screen" class="card">
         <h2 style="text-align:center;">書き取り練習 結果一覧</h2>
         <div id="result-list"></div>
@@ -284,7 +283,8 @@ function startLesson(mode) {
         else currentSession = currentSession.slice(0, 10);
         if(!currentSession.length) return alert("未完了の問題がありません！");
     } else {
-        currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 10);
+        // 書き取りモード：5問ランダム抽出
+        currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 5);
     }
     
     currentIndex = 0;
@@ -317,7 +317,6 @@ function showQuestion() {
         checkBtn.style.display = 'block';
         document.getElementById('hint-btn').style.display = 'block';
 
-        // スロットの中身だけを掃除し、ラベルを残す
         document.querySelectorAll('#drop-area .slot').forEach(s => {
             const wrappers = s.querySelectorAll('.piece-wrapper');
             wrappers.forEach(w => w.remove());
