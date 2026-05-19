@@ -71,7 +71,6 @@
 <canvas id="confetti-canvas"></canvas>
 
 <div class="main-wrapper">
-    <!-- ホーム画面 -->
     <div id="home-screen" class="card">
         <h1>英語語順トレーニング</h1>
         <div style="margin-bottom: 20px;">
@@ -113,7 +112,6 @@
         </div>
     </div>
 
-    <!-- クイズ画面 -->
     <div id="quiz-screen">
         <div style="display:flex; justify-content: space-between; align-items:center;">
             <button class="btn-mini-reset" style="padding:8px 15px;" onclick="location.reload()">◀ ホーム</button>
@@ -157,7 +155,6 @@
         </div>
     </div>
 
-    <!-- 結果画面 -->
     <div id="result-screen" class="card">
         <h2 style="text-align:center;">書き取り練習 結果一覧</h2>
         <div id="result-list"></div>
@@ -236,7 +233,10 @@ function updateProgress() {
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
     const pool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
     if (pool.length > 0) {
-        const completedCount = pool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
+        const completedCount = pool.filter(d => {
+            const safeId = String(d.id).trim();
+            return studyLogs[safeId] && studyLogs[safeId].streak >= 2;
+        }).length;
         const percent = Math.floor((completedCount / pool.length) * 100);
         document.getElementById('main-progress-bar').style.width = `${percent}%`;
         document.getElementById('main-progress-text').innerText = `${percent}%`;
@@ -259,7 +259,10 @@ function renderMatrix() {
             const cellPool = database.filter(d => String(d.cat).trim() === cat && String(d.lv).trim() === lv);
             if (cellPool.length === 0) row += `<td>-</td>`;
             else {
-                const done = cellPool.filter(d => studyLogs[d.id] && studyLogs[d.id].streak >= 2).length;
+                const done = cellPool.filter(d => {
+                    const safeId = String(d.id).trim();
+                    return studyLogs[safeId] && studyLogs[safeId].streak >= 2;
+                }).length;
                 const pct = Math.floor((done / cellPool.length) * 100);
                 row += `<td class="${pct===100?'cell-perfect':(done===0?'cell-zero':'')}">${done}/${cellPool.length}<br><small>${pct}%</small></td>`;
             }
@@ -276,14 +279,13 @@ function startLesson(mode) {
     if(!filterPool.length) return alert("条件に合う問題がありません。");
 
     if(mode === 'sort') {
-        const c0 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
-        const c1 = filterPool.filter(d => (studyLogs[d.id]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
+        const c0 = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
+        const c1 = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
         currentSession = [...c0];
         if (currentSession.length < 10) currentSession = [...currentSession, ...c1.slice(0, 10 - currentSession.length)];
         else currentSession = currentSession.slice(0, 10);
         if(!currentSession.length) return alert("未完了の問題がありません！");
     } else {
-        // 書き取りモード：5問ランダム抽出
         currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 5);
     }
     
@@ -366,6 +368,7 @@ function handleSlotClick(targetZone) {
 function checkAnswer() {
     if (currentMode !== 'sort') return;
     const q = currentSession[currentIndex];
+    const safeId = String(q.id).trim();
     const slots = document.querySelectorAll('#drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
     let correct = true;
@@ -377,12 +380,15 @@ function checkAnswer() {
     const fb = document.getElementById('feedback');
     if (correct) {
         fb.innerText = "⭕ 正解！"; fb.style.color = "var(--success)"; launchConfetti();
-        if (!isHintUsed) { if(!studyLogs[q.id]) studyLogs[q.id]={streak:0}; studyLogs[q.id].streak++; }
+        if (!isHintUsed) { 
+            if(!studyLogs[safeId]) studyLogs[safeId] = {streak:0}; 
+            studyLogs[safeId].streak++; 
+        }
         localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
         setTimeout(goToNextQuestion, 1500);
     } else {
         fb.innerText = "❌ 不正解"; fb.style.color = "var(--error)";
-        if(studyLogs[q.id]) studyLogs[q.id].streak = 0;
+        if(studyLogs[safeId]) studyLogs[safeId].streak = 0;
         localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
         showModelAnswer(q); 
     }
@@ -471,7 +477,12 @@ function importData() {
         const file = e.target.files[0];
         const reader = new FileReader();
         reader.onload = event => {
-            studyLogs = JSON.parse(event.target.result);
+            const rawData = JSON.parse(event.target.result);
+            // 読み込み時もキーを安全に文字列化して復元する
+            studyLogs = {};
+            Object.keys(rawData).forEach(k => {
+                studyLogs[String(k).trim()] = rawData[k];
+            });
             localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
             location.reload();
         };
@@ -486,7 +497,8 @@ function resetFilteredProgress() {
     if (!confirm("リセットしますか？")) return;
     database.forEach(d => {
         if (getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim())) {
-            if (studyLogs[d.id]) studyLogs[d.id].streak = 0;
+            const safeId = String(d.id).trim();
+            if (studyLogs[safeId]) studyLogs[safeId].streak = 0;
         }
     });
     localStorage.setItem('eng_v5_logs', JSON.stringify(studyLogs));
