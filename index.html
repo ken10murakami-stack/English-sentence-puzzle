@@ -535,6 +535,57 @@ function toggleAll(type, isCheck) {
 }
 
 window.onload = loadData;
+    // 【安全データ合体コード】最初期版(logs)と現在(projectA)を消さずにミックスする
+(function() {
+    const rootKey = 'eng_v5_logs';               // 最初期版のキー
+    const oldKey = 'eng_v5_logs_projectA';       // これまで使っていたキー
+    const newKey = 'eng_v5_logs_projectA';       // 現在読み込ませたいキー（今回はprojectAに集約）
+    
+    let mergedLogs = JSON.parse(localStorage.getItem(newKey)) || {};
+    let isChanged = false;
+
+    // 1. 最初期版（eng_v5_logs）のデータを合体
+    if (localStorage.getItem(rootKey)) {
+        const rootLogs = JSON.parse(localStorage.getItem(rootKey)) || {};
+        Object.keys(rootLogs).forEach(id => {
+            const safeId = String(id).trim();
+            if (!mergedLogs[safeId] || (rootLogs[id].streak > (mergedLogs[safeId].streak || 0))) {
+                mergedLogs[safeId] = rootLogs[id];
+                isChanged = true;
+            }
+        });
+    }
+
+    // 2. 移行期（eng_v5_logs_projectA）のデータを合体
+    // ※今回は集約先がprojectAなので、実質的に手元の最新データがベースになりますが、
+    // 万が一別データとしてブラウザに残っていた場合の衝突を防ぐ安全弁として機能します。
+    if (localStorage.getItem(oldKey) && oldKey !== newKey) {
+        const oldLogs = JSON.parse(localStorage.getItem(oldKey)) || {};
+        Object.keys(oldLogs).forEach(id => {
+            const safeId = String(id).trim();
+            if (!mergedLogs[safeId] || (oldLogs[id].streak > (mergedLogs[safeId].streak || 0))) {
+                mergedLogs[safeId] = oldLogs[id];
+                isChanged = true;
+            }
+        });
+    }
+
+    // 3. データの保存と画面への反映
+    if (isChanged) {
+        // 合体した最新データを、現在のキー(eng_v5_logs_projectA)に上書き保存
+        localStorage.setItem(newKey, JSON.stringify(mergedLogs));
+
+        // フィルタ設定（チェックボックス）の移行（現在が空の場合のみ、過去の設定をコピペ）
+        const rootFilter = 'eng_v5_filter_settings';
+        const newFilter = 'eng_v5_filter_settings_projectA';
+        if (localStorage.getItem(rootFilter) && !localStorage.getItem(newFilter)) {
+            localStorage.setItem(newFilter, localStorage.getItem(rootFilter));
+        }
+
+        // データを確実にアプリに認識させるため、最初の1回だけ自動リロード
+        location.reload();
+    }
+})();
 </script>
 </body>
 </html>
