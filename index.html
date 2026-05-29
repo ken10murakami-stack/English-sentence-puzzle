@@ -32,6 +32,17 @@
         .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
         .cell-zero { color: #ccc; }
 
+        /* 英文一覧エリアのスタイル */
+        .sentence-list-wrapper { margin-top: 30px; }
+        .sentence-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 600px; }
+        .sentence-table th, .sentence-table td { border: 1px solid #ddd; padding: 12px 10px; text-align: left; }
+        .sentence-table th { background: #f8f9fa; color: var(--primary); text-align: center; }
+        .sentence-table .center-text { text-align: center; }
+        .sentence-table .jp-cell { font-weight: bold; color: var(--primary); width: 25%; }
+        .sentence-table .en-cell { color: #2980b9; font-size: 0.95rem; font-weight: bold; width: 35%; }
+        .sentence-table .slots-cell { font-size: 0.75rem; color: #666; background: #fafafa; }
+        .slot-badge { display: inline-block; padding: 2px 6px; background: #e2e8f0; border-radius: 4px; margin-right: 4px; font-weight: bold; color: #4a5568; }
+
         #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
         .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
         
@@ -58,6 +69,7 @@
         .btn-outline { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
         .btn-text { font-size: 0.75rem; color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
         .btn-text-danger { font-size: 0.75rem; color: var(--error); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
+        .btn-mini-reset { font-size: 0.85rem; color: var(--primary); background: #fff; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; }
 
         .result-item { border-bottom: 2px solid #eee; padding: 20px 0; }
         .result-jp { font-weight: bold; color: var(--primary); margin-bottom: 8px; font-size: 1.1rem; }
@@ -109,6 +121,25 @@
                 <thead><tr id="matrix-head"></tr></thead>
                 <tbody id="matrix-body"></tbody>
             </table>
+        </div>
+
+        <div class="status-table-wrapper sentence-list-wrapper">
+            <h3 style="margin-bottom:10px; font-size:1rem; border-left:4px solid var(--hint); padding-left:10px;">選択中の範囲の登録英文一覧</h3>
+            <div style="overflow-x: auto;">
+                <table class="sentence-table">
+                    <thead>
+                        <tr>
+                            <th>項目/Lv</th>
+                            <th>日本語文</th>
+                            <th>完成英文</th>
+                            <th>語順スロット内訳</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sentence-list-body">
+                        <tr><td colspan="4" style="text-align:center; color:#999;">データを読み込み中、または選択範囲がありません。</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
@@ -163,11 +194,14 @@
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbxhfCqk5HGb85qh3YJJK2oQzuwlr-ckHSmrm9WimbfYXLbKAHQIyNtKpIHqRppaSF0CSg/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzwpXwzXoBdHbfHrLA2RkEWlJhmoVCAn09OJ_VDOw14wGQ8uogfVCFvg4EizGwPtdjIDg/exec';
 let database = [];
 
-// 【対策A】プロジェクトA専用の独立したローカルストレージ名
-let studyLogs = JSON.parse(localStorage.getItem('eng_v5_logs_projectA')) || {};
+// 今後のデータ読み書きはすべて「projectA」に固定します
+const ACTIVE_LOGS_KEY = 'eng_v5_logs_projectA';
+const ACTIVE_FILTER_KEY = 'eng_v5_filter_settings_projectA';
+
+let studyLogs = JSON.parse(localStorage.getItem(ACTIVE_LOGS_KEY)) || {};
 let currentSession = [];
 let currentIndex = 0;
 let isHintUsed = false;
@@ -205,7 +239,7 @@ async function loadData() {
 }
 
 function setupFilters() {
-    const savedFilters = JSON.parse(localStorage.getItem('eng_v5_filter_settings_projectA')) || {};
+    const savedFilters = JSON.parse(localStorage.getItem(ACTIVE_FILTER_KEY)) || {};
     const types = { grade: 'filter-grade', cat: 'filter-cat', lv: 'filter-lv' };
     Object.keys(types).forEach(key => {
         const container = document.getElementById(types[key]);
@@ -227,7 +261,7 @@ function onFilterChange() {
         cat: Array.from(document.querySelectorAll('input[data-type="cat"]:checked')).map(i => i.value),
         lv: Array.from(document.querySelectorAll('input[data-type="lv"]:checked')).map(i => i.value)
     };
-    localStorage.setItem('eng_v5_filter_settings_projectA', JSON.stringify(settings));
+    localStorage.setItem(ACTIVE_FILTER_KEY, JSON.stringify(settings));
     updateProgress(); 
 }
 
@@ -237,8 +271,7 @@ function updateProgress() {
     if (pool.length > 0) {
         const completedCount = pool.filter(d => {
             const safeId = String(d.id).trim();
-            // 【ベース：2回正解クリア】
-            return studyLogs[safeId] && studyLogs[safeId].streak >= 2;
+            return studyLogs[safeId] && studyLogs[safeId].streak >= 1;
         }).length;
         const percent = Math.floor((completedCount / pool.length) * 100);
         document.getElementById('main-progress-bar').style.width = `${percent}%`;
@@ -248,6 +281,7 @@ function updateProgress() {
         document.getElementById('progress-stats').innerText = "0 / 0 問完了 (0%)";
     }
     renderMatrix();
+    renderSentenceList(pool); 
 }
 
 function renderMatrix() {
@@ -264,14 +298,45 @@ function renderMatrix() {
             else {
                 const done = cellPool.filter(d => {
                     const safeId = String(d.id).trim();
-                    // 【ベース：2回正解クリア】
-                    return studyLogs[safeId] && studyLogs[safeId].streak >= 2;
+                    return studyLogs[safeId] && studyLogs[safeId].streak >= 1;
                 }).length;
                 const pct = Math.floor((done / cellPool.length) * 100);
                 row += `<td class="${pct===100?'cell-perfect':(done===0?'cell-zero':'')}">${done}/${cellPool.length}<br><small>${pct}%</small></td>`;
             }
         });
         return row + `</tr>`;
+    }).join('');
+}
+
+function renderSentenceList(filteredPool) {
+    const listBody = document.getElementById('sentence-list-body');
+    if (filteredPool.length === 0) {
+        listBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#999;">選択された条件に一致する英文はありません。</td></tr>`;
+        return;
+    }
+
+    listBody.innerHTML = filteredPool.map(q => {
+        const fullSentence = [q.G, q.H, q.I, q.J, q.K].filter(v => v && String(v).trim() !== "").join(' ');
+        
+        const slotLabels = ['⓪', '①', '②', '③', '④'];
+        const cols = ['G', 'H', 'I', 'J', 'K'];
+        let slotDetails = [];
+        cols.forEach((col, idx) => {
+            const word = String(q[col] || "").trim();
+            if (word) {
+                slotDetails.push(`<span class="slot-badge">${slotLabels[idx]}</span>${word}`);
+            }
+        });
+        const slotDetailText = slotDetails.join('<br style="margin-bottom:4px;">');
+
+        return `
+            <tr>
+                <td class="center-text" style="color:#666; font-size:0.75rem;">${q.cat}<br><strong>${q.lv}</strong></td>
+                <td class="jp-cell">${q.E}</td>
+                <td class="en-cell">${fullSentence}</td>
+                <td class="slots-cell">${slotDetailText}</td>
+            </tr>
+        `;
     }).join('');
 }
 
@@ -283,12 +348,9 @@ function startLesson(mode) {
     if(!filterPool.length) return alert("条件に合う問題がありません。");
 
     if(mode === 'sort') {
-        const c0 = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
-        const c1 = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 1).sort(() => Math.random() - 0.5);
-        currentSession = [...c0];
-        if (currentSession.length < 10) currentSession = [...currentSession, ...c1.slice(0, 10 - currentSession.length)];
-        else currentSession = currentSession.slice(0, 10);
-        if(!currentSession.length) return alert("未完了の問題がありません！");
+        const uncompleted = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
+        currentSession = uncompleted.slice(0, 10);
+        if(!currentSession.length) return alert("選択した範囲には未完了の問題がありません！すべてクリア済みです。");
     } else {
         currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 5);
     }
@@ -330,7 +392,6 @@ function showQuestion() {
         const area = document.getElementById('piece-area');
         area.innerHTML = "";
         
-        // 【ダミー対応】D列を分割し、すべてのパーツを取り出す（dummy指定のものも含む）
         let rawWords = [];
         q.D.split(' ').forEach(item => { 
             const parts = item.split(':');
@@ -383,7 +444,6 @@ function checkAnswer() {
     const cols = ['G', 'H', 'I', 'J', 'K'];
     let correct = true;
     
-    // 各スロットの内容が、正解列と一致しているかを検証
     cols.forEach((col, idx) => {
         const ans = Array.from(slots[idx].querySelectorAll('.piece')).map(p => p.innerText).join(' ').trim().toLowerCase();
         if (ans !== String(q[col]||"").trim().toLowerCase()) correct = false;
@@ -396,27 +456,27 @@ function checkAnswer() {
             if(!studyLogs[safeId]) studyLogs[safeId] = {streak:0}; 
             studyLogs[safeId].streak++; 
         }
-        localStorage.setItem('eng_v5_logs_projectA', JSON.stringify(studyLogs));
+        localStorage.setItem(ACTIVE_LOGS_KEY, JSON.stringify(studyLogs));
         setTimeout(goToNextQuestion, 1500);
     } else {
         fb.innerText = "❌ 不正解"; fb.style.color = "var(--error)";
         if(studyLogs[safeId]) studyLogs[safeId].streak = 0;
-        localStorage.setItem('eng_v5_logs_projectA', JSON.stringify(studyLogs));
+        localStorage.setItem(ACTIVE_LOGS_KEY, JSON.stringify(studyLogs));
         showModelAnswer(q); 
     }
 }
 
+// 模範解答表示
 function showModelAnswer(q) {
     const modelSlots = document.querySelectorAll('#model-drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
     
-    // 【ダミー対応】模範解答を構築する際は dummy の単語を除外する
     const definedPieces = q.D.split(' ')
         .map(item => { 
             const [phrase, hint] = item.split(':'); 
             return { text: phrase.replace(/_/g, ' ').trim(), hint: hint || "" }; 
         })
-        .filter(p => p.hint.toLowerCase() !== 'dummy'); // dummy は除外
+        .filter(p => p.hint.toLowerCase() !== 'dummy');
     
     cols.forEach((col, idx) => {
         const label = modelSlots[idx].querySelector('.slot-label');
@@ -480,7 +540,6 @@ function applyHint() {
     });
     area.innerHTML = "";
     
-    // 【ダミー対応】ヒント表示の際も、dummy要素には日本語訳ではなく「ダミー」等のヒントラベルを表示
     q.D.split(' ').sort(()=>Math.random()-0.5).forEach(item => { 
         const [phrase, trans] = item.split(':'); 
         const isDummy = (trans || "").toLowerCase() === 'dummy';
@@ -504,10 +563,8 @@ function importData() {
         reader.onload = event => {
             const rawData = JSON.parse(event.target.result);
             studyLogs = {};
-            Object.keys(rawData).forEach(k => {
-                studyLogs[String(k).trim()] = rawData[k];
-            });
-            localStorage.setItem('eng_v5_logs_projectA', JSON.stringify(studyLogs));
+            Object.keys(rawData).forEach(k => { studyLogs[String(k).trim()] = rawData[k]; });
+            localStorage.setItem(ACTIVE_LOGS_KEY, JSON.stringify(studyLogs));
             location.reload();
         };
         reader.readAsText(file);
@@ -525,7 +582,7 @@ function resetFilteredProgress() {
             if (studyLogs[safeId]) studyLogs[safeId].streak = 0;
         }
     });
-    localStorage.setItem('eng_v5_logs_projectA', JSON.stringify(studyLogs));
+    localStorage.setItem(ACTIVE_LOGS_KEY, JSON.stringify(studyLogs));
     updateProgress();
 }
 
@@ -534,21 +591,23 @@ function toggleAll(type, isCheck) {
     onFilterChange();
 }
 
-window.onload = loadData;
-    // 【安全データ合体コード】最初期版(logs)と現在(projectA)を消さずにミックスする
+// =========================================================
+// 【安全データ合体＆移行コード】
+// 過去の最初期キー(eng_v5_logs)からデータをprojectAへ救出して移行
+// =========================================================
 (function() {
     const rootKey = 'eng_v5_logs';               // 最初期版のキー
-    const oldKey = 'eng_v5_logs_projectA';       // これまで使っていたキー
-    const newKey = 'eng_v5_logs_projectA';       // 現在読み込ませたいキー（今回はprojectAに集約）
+    const targetKey = ACTIVE_LOGS_KEY;          // 移行先・今後の固定キー (projectA)
     
-    let mergedLogs = JSON.parse(localStorage.getItem(newKey)) || {};
+    let mergedLogs = JSON.parse(localStorage.getItem(targetKey)) || {};
     let isChanged = false;
 
-    // 1. 最初期版（eng_v5_logs）のデータを合体
+    // 最初期キー（eng_v5_logs）が存在する場合のみ合体処理を行う
     if (localStorage.getItem(rootKey)) {
         const rootLogs = JSON.parse(localStorage.getItem(rootKey)) || {};
         Object.keys(rootLogs).forEach(id => {
             const safeId = String(id).trim();
+            // projectAにデータが存在しない、または最初期データの方が進捗（streak）が高い場合は上書き移行
             if (!mergedLogs[safeId] || (rootLogs[id].streak > (mergedLogs[safeId].streak || 0))) {
                 mergedLogs[safeId] = rootLogs[id];
                 isChanged = true;
@@ -556,36 +615,27 @@ window.onload = loadData;
         });
     }
 
-    // 2. 移行期（eng_v5_logs_projectA）のデータを合体
-    // ※今回は集約先がprojectAなので、実質的に手元の最新データがベースになりますが、
-    // 万が一別データとしてブラウザに残っていた場合の衝突を防ぐ安全弁として機能します。
-    if (localStorage.getItem(oldKey) && oldKey !== newKey) {
-        const oldLogs = JSON.parse(localStorage.getItem(oldKey)) || {};
-        Object.keys(oldLogs).forEach(id => {
-            const safeId = String(id).trim();
-            if (!mergedLogs[safeId] || (oldLogs[id].streak > (mergedLogs[safeId].streak || 0))) {
-                mergedLogs[safeId] = oldLogs[id];
-                isChanged = true;
-            }
-        });
-    }
-
-    // 3. データの保存と画面への反映
     if (isChanged) {
-        // 合体した最新データを、現在のキー(eng_v5_logs_projectA)に上書き保存
-        localStorage.setItem(newKey, JSON.stringify(mergedLogs));
+        // 合体したデータを projectA に確実に保存
+        localStorage.setItem(targetKey, JSON.stringify(mergedLogs));
 
-        // フィルタ設定（チェックボックス）の移行（現在が空の場合のみ、過去の設定をコピペ）
+        // 過去のフィルター設定（初期版）があればprojectA側に複製
         const rootFilter = 'eng_v5_filter_settings';
-        const newFilter = 'eng_v5_filter_settings_projectA';
-        if (localStorage.getItem(rootFilter) && !localStorage.getItem(newFilter)) {
-            localStorage.setItem(newFilter, localStorage.getItem(rootFilter));
+        const targetFilter = ACTIVE_FILTER_KEY;
+        if (localStorage.getItem(rootFilter) && !localStorage.getItem(targetFilter)) {
+            localStorage.setItem(targetFilter, localStorage.getItem(rootFilter));
         }
 
-        // データを確実にアプリに認識させるため、最初の1回だけ自動リロード
+        // 重要: 救出・移行が成功したため、最初期の古いキーは削除して重複合体を防止
+        localStorage.removeItem(rootKey);
+        localStorage.removeItem('eng_v5_filter_settings');
+
+        // 画面をリロードしてマージ後のデータをアプリに反映
         location.reload();
     }
 })();
+
+window.onload = loadData;
 </script>
 </body>
 </html>
