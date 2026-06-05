@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>英語語順トレーニング</title>
+    <title>英語語順トレーニング (1回クリア版)</title>
     <style>
         :root {
             --primary: #2c3e50; --accent: #3498db; --success: #27ae60;
@@ -32,16 +32,14 @@
         .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
         .cell-zero { color: #ccc; }
 
-        /* 英文一覧エリアのスタイル */
+        /* 英文一覧エリアのスタイル修正（3列用に幅を再調整） */
         .sentence-list-wrapper { margin-top: 30px; }
-        .sentence-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 600px; }
+        .sentence-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 500px; }
         .sentence-table th, .sentence-table td { border: 1px solid #ddd; padding: 12px 10px; text-align: left; }
         .sentence-table th { background: #f8f9fa; color: var(--primary); text-align: center; }
         .sentence-table .center-text { text-align: center; }
-        .sentence-table .jp-cell { font-weight: bold; color: var(--primary); width: 25%; }
-        .sentence-table .en-cell { color: #2980b9; font-size: 0.95rem; font-weight: bold; width: 35%; }
-        .sentence-table .slots-cell { font-size: 0.75rem; color: #666; background: #fafafa; }
-        .slot-badge { display: inline-block; padding: 2px 6px; background: #e2e8f0; border-radius: 4px; margin-right: 4px; font-weight: bold; color: #4a5568; }
+        .sentence-table .jp-cell { font-weight: bold; color: var(--primary); width: 40%; }
+        .sentence-table .en-cell { color: #2980b9; font-size: 0.95rem; font-weight: bold; width: 45%; }
 
         #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
         .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
@@ -83,6 +81,7 @@
 <canvas id="confetti-canvas"></canvas>
 
 <div class="main-wrapper">
+    <!-- ホーム画面 -->
     <div id="home-screen" class="card">
         <h1>英語語順トレーニング</h1>
         <div style="margin-bottom: 20px;">
@@ -115,6 +114,7 @@
             </div>
         </div>
 
+        <!-- 進捗一覧表 -->
         <div class="status-table-wrapper">
             <h3 style="margin-bottom:10px; font-size:1rem; border-left:4px solid var(--accent); padding-left:10px;">文法項目×レベル別 達成状況</h3>
             <table class="status-table" id="matrix-table">
@@ -123,6 +123,7 @@
             </table>
         </div>
 
+        <!-- 登録英文一覧確認エリア（内訳列を削除し3列に変更） -->
         <div class="status-table-wrapper sentence-list-wrapper">
             <h3 style="margin-bottom:10px; font-size:1rem; border-left:4px solid var(--hint); padding-left:10px;">選択中の範囲の登録英文一覧</h3>
             <div style="overflow-x: auto;">
@@ -132,17 +133,17 @@
                             <th>項目/Lv</th>
                             <th>日本語文</th>
                             <th>完成英文</th>
-                            <th>語順スロット内訳</th>
                         </tr>
                     </thead>
                     <tbody id="sentence-list-body">
-                        <tr><td colspan="4" style="text-align:center; color:#999;">データを読み込み中、または選択範囲がありません。</td></tr>
+                        <tr><td colspan="3" style="text-align:center; color:#999;">データを読み込み中、または選択範囲がありません。</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
+    <!-- クイズ画面 -->
     <div id="quiz-screen">
         <div style="display:flex; justify-content: space-between; align-items:center;">
             <button class="btn-mini-reset" style="padding:8px 15px;" onclick="location.reload()">◀ ホーム</button>
@@ -186,6 +187,7 @@
         </div>
     </div>
 
+    <!-- 結果画面 -->
     <div id="result-screen" class="card">
         <h2 style="text-align:center;">書き取り練習 結果一覧</h2>
         <div id="result-list"></div>
@@ -197,7 +199,6 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwajaQl0yY5F4i9XuihcIh81Xm_5H9xmVgR0nZJIrZcRwiRv-8IomF4soAzJ_Ymp9ddMQ/exec';
 let database = [];
 
-// 今後のデータ読み書きはすべて「projectA」に固定します
 const ACTIVE_LOGS_KEY = 'eng_v5_logs_projectA';
 const ACTIVE_FILTER_KEY = 'eng_v5_filter_settings_projectA';
 
@@ -308,33 +309,22 @@ function renderMatrix() {
     }).join('');
 }
 
+// 登録英文一覧を描画する関数（スロット内訳列を完全に除外）
 function renderSentenceList(filteredPool) {
     const listBody = document.getElementById('sentence-list-body');
     if (filteredPool.length === 0) {
-        listBody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#999;">選択された条件に一致する英文はありません。</td></tr>`;
+        listBody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#999;">選択された条件に一致する英文はありません。</td></tr>`;
         return;
     }
 
     listBody.innerHTML = filteredPool.map(q => {
         const fullSentence = [q.G, q.H, q.I, q.J, q.K].filter(v => v && String(v).trim() !== "").join(' ');
-        
-        const slotLabels = ['⓪', '①', '②', '③', '④'];
-        const cols = ['G', 'H', 'I', 'J', 'K'];
-        let slotDetails = [];
-        cols.forEach((col, idx) => {
-            const word = String(q[col] || "").trim();
-            if (word) {
-                slotDetails.push(`<span class="slot-badge">${slotLabels[idx]}</span>${word}`);
-            }
-        });
-        const slotDetailText = slotDetails.join('<br style="margin-bottom:4px;">');
 
         return `
             <tr>
                 <td class="center-text" style="color:#666; font-size:0.75rem;">${q.cat}<br><strong>${q.lv}</strong></td>
                 <td class="jp-cell">${q.E}</td>
                 <td class="en-cell">${fullSentence}</td>
-                <td class="slots-cell">${slotDetailText}</td>
             </tr>
         `;
     }).join('');
@@ -596,18 +586,16 @@ function toggleAll(type, isCheck) {
 // 過去の最初期キー(eng_v5_logs)からデータをprojectAへ救出して移行
 // =========================================================
 (function() {
-    const rootKey = 'eng_v5_logs';               // 最初期版のキー
-    const targetKey = ACTIVE_LOGS_KEY;          // 移行先・今後の固定キー (projectA)
+    const rootKey = 'eng_v5_logs';               
+    const targetKey = ACTIVE_LOGS_KEY;          
     
     let mergedLogs = JSON.parse(localStorage.getItem(targetKey)) || {};
     let isChanged = false;
 
-    // 最初期キー（eng_v5_logs）が存在する場合のみ合体処理を行う
     if (localStorage.getItem(rootKey)) {
         const rootLogs = JSON.parse(localStorage.getItem(rootKey)) || {};
         Object.keys(rootLogs).forEach(id => {
             const safeId = String(id).trim();
-            // projectAにデータが存在しない、または最初期データの方が進捗（streak）が高い場合は上書き移行
             if (!mergedLogs[safeId] || (rootLogs[id].streak > (mergedLogs[safeId].streak || 0))) {
                 mergedLogs[safeId] = rootLogs[id];
                 isChanged = true;
@@ -616,21 +604,14 @@ function toggleAll(type, isCheck) {
     }
 
     if (isChanged) {
-        // 合体したデータを projectA に確実に保存
         localStorage.setItem(targetKey, JSON.stringify(mergedLogs));
-
-        // 過去のフィルター設定（初期版）があればprojectA側に複製
         const rootFilter = 'eng_v5_filter_settings';
         const targetFilter = ACTIVE_FILTER_KEY;
         if (localStorage.getItem(rootFilter) && !localStorage.getItem(targetFilter)) {
             localStorage.setItem(targetFilter, localStorage.getItem(rootFilter));
         }
-
-        // 重要: 救出・移行が成功したため、最初期の古いキーは削除して重複合体を防止
         localStorage.removeItem(rootKey);
         localStorage.removeItem('eng_v5_filter_settings');
-
-        // 画面をリロードしてマージ後のデータをアプリに反映
         location.reload();
     }
 })();
