@@ -32,7 +32,6 @@
         .cell-perfect { background-color: #e8f5e9 !important; color: #2e7d32; font-weight: bold; }
         .cell-zero { color: #ccc; }
 
-        /* 英文一覧エリアのスタイル修正（3列用に幅を再調整） */
         .sentence-list-wrapper { margin-top: 30px; }
         .sentence-table { width: 100%; border-collapse: collapse; background: #fff; font-size: 0.85rem; min-width: 500px; }
         .sentence-table th, .sentence-table td { border: 1px solid #ddd; padding: 12px 10px; text-align: left; }
@@ -41,7 +40,7 @@
         .sentence-table .jp-cell { font-weight: bold; color: var(--primary); width: 40%; }
         .sentence-table .en-cell { color: #2980b9; font-size: 0.95rem; font-weight: bold; width: 45%; }
 
-        #quiz-screen, #result-screen { display: none; flex-direction: column; gap: 20px; }
+        #quiz-screen { display: none; flex-direction: column; gap: 20px; }
         .japanese-box { font-size: 1.8rem; font-weight: bold; color: var(--primary); text-align: center; padding: 45px; background: #fff; border-radius: 15px; border-bottom: 5px solid var(--accent); }
         
         .slot-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin: 15px 0; }
@@ -68,10 +67,6 @@
         .btn-text { font-size: 0.75rem; color: var(--accent); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
         .btn-text-danger { font-size: 0.75rem; color: var(--error); background: none; border: none; cursor: pointer; text-decoration: underline; padding: 0; }
         .btn-mini-reset { font-size: 0.85rem; color: var(--primary); background: #fff; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; }
-
-        .result-item { border-bottom: 2px solid #eee; padding: 20px 0; }
-        .result-jp { font-weight: bold; color: var(--primary); margin-bottom: 8px; font-size: 1.1rem; }
-        .result-en { color: var(--success); font-size: 1.2rem; font-weight: bold; }
 
         #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
     </style>
@@ -106,8 +101,8 @@
         </div>
 
         <div class="action-bar" style="flex-wrap: wrap;">
-            <button class="btn btn-primary" onclick="startLesson('sort')">10問並べ替え開始</button>
-            <button class="btn btn-success" style="background:var(--primary);" onclick="startLesson('writing')">5問書き取り練習</button>
+            <!-- 並べ替え練習開始ボタンのみに集約 -->
+            <button class="btn btn-primary" style="font-size: 1.3rem; padding: 15px 50px;" onclick="startLesson()">並べ替え練習開始</button>
             <div style="width:100%; display:flex; justify-content:center; gap:15px; margin-top:10px;">
                 <button class="btn btn-outline" onclick="exportData()">記録保存</button>
                 <button class="btn btn-outline" onclick="importData()">記録読込</button>
@@ -123,7 +118,7 @@
             </table>
         </div>
 
-        <!-- 登録英文一覧確認エリア（内訳列を削除し3列に変更） -->
+        <!-- 登録英文一覧確認エリア -->
         <div class="status-table-wrapper sentence-list-wrapper">
             <h3 style="margin-bottom:10px; font-size:1rem; border-left:4px solid var(--hint); padding-left:10px;">選択中の範囲の登録英文一覧</h3>
             <div style="overflow-x: auto;">
@@ -147,8 +142,9 @@
     <div id="quiz-screen">
         <div style="display:flex; justify-content: space-between; align-items:center;">
             <button class="btn-mini-reset" style="padding:8px 15px;" onclick="location.reload()">◀ ホーム</button>
-            <div id="quiz-counter" style="font-weight:bold;">1 / 10</div>
-            <button class="btn btn-hint sort-only" id="hint-btn" onclick="applyHint()">ヒント</button>
+            <!-- 残り問題数をリアルタイム表示 -->
+            <div id="quiz-counter" style="font-weight:bold; color: var(--primary);">残り未クリア: - 問</div>
+            <button class="btn btn-hint" id="hint-btn" onclick="applyHint()">ヒント</button>
         </div>
         <div id="feedback" style="text-align:center; font-size:1.8rem; font-weight:bold; height:40px;"></div>
         
@@ -165,7 +161,7 @@
 
         <div class="japanese-box" id="japanese-text"></div>
         
-        <div id="sort-area" class="sort-only">
+        <div id="sort-area">
             <div style="text-align:center; font-weight:bold; color:var(--primary); margin-top:10px;">【あなたの解答】</div>
             <div class="slot-container" id="drop-area">
                 <div class="slot" data-col="G" onclick="handleSlotClick(this)"><div class="slot-label">⓪疑問文のとき</div></div>
@@ -177,26 +173,15 @@
             <div class="piece-container" id="piece-area" onclick="handleSlotClick(this)"></div>
         </div>
 
-        <div id="writing-msg" style="display:none; text-align:center; color:#666; margin-top:20px; font-style:italic;">
-            ノートに英文を書いてから「次の問題へ」を押してください。
-        </div>
-
         <div class="action-bar">
-            <button id="check-btn" class="btn btn-success sort-only" onclick="checkAnswer()">答え合わせ</button>
+            <button id="check-btn" class="btn btn-success" onclick="checkAnswer()">答え合わせ</button>
             <button id="next-btn" class="btn btn-next" onclick="goToNextQuestion()" style="display:none;">次の問題へ ▶</button>
         </div>
-    </div>
-
-    <!-- 結果画面 -->
-    <div id="result-screen" class="card">
-        <h2 style="text-align:center;">書き取り練習 結果一覧</h2>
-        <div id="result-list"></div>
-        <div class="action-bar"><button class="btn btn-primary" onclick="location.reload()">ホームへ戻る</button></div>
     </div>
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwajaQl0yY5F4i9XuihcIh81Xm_5H9xmVgR0nZJIrZcRwiRv-8IomF4soAzJ_Ymp9ddMQ/exec';
+const GAS_URL = 'ここにデプロイしたGASのURLを貼ってください';
 let database = [];
 
 const ACTIVE_LOGS_KEY = 'eng_v5_logs_projectA';
@@ -206,7 +191,6 @@ let studyLogs = JSON.parse(localStorage.getItem(ACTIVE_LOGS_KEY)) || {};
 let currentSession = [];
 let currentIndex = 0;
 let isHintUsed = false;
-let currentMode = 'sort';
 let activePieceWrapper = null;
 let confettiActive = false;
 
@@ -309,7 +293,6 @@ function renderMatrix() {
     }).join('');
 }
 
-// 登録英文一覧を描画する関数（スロット内訳列を完全に除外）
 function renderSentenceList(filteredPool) {
     const listBody = document.getElementById('sentence-list-body');
     if (filteredPool.length === 0) {
@@ -330,25 +313,21 @@ function renderSentenceList(filteredPool) {
     }).join('');
 }
 
-function startLesson(mode) {
-    currentMode = mode;
+// レッスン開始（上限無しの全未クリア抽出へ変更）
+function startLesson() {
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
     const filterPool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
     
     if(!filterPool.length) return alert("条件に合う問題がありません。");
 
-    if(mode === 'sort') {
-        const uncompleted = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
-        currentSession = uncompleted.slice(0, 10);
-        if(!currentSession.length) return alert("選択した範囲には未完了の問題がありません！すべてクリア済みです。");
-    } else {
-        currentSession = filterPool.sort(() => Math.random() - 0.5).slice(0, 5);
-    }
+    // 未完了（streakが0またはデータなし）の問題を全件ランダムで抽出
+    currentSession = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
+    
+    if(!currentSession.length) return alert("選択した範囲には未完了の問題がありません！すべてクリア済みです。");
     
     currentIndex = 0;
     document.getElementById('home-screen').style.display='none';
     document.getElementById('quiz-screen').style.display='flex';
-    document.getElementById('result-screen').style.display='none';
     showQuestion();
 }
 
@@ -358,43 +337,31 @@ function showQuestion() {
     const q = currentSession[currentIndex];
     isHintUsed = false;
     
-    document.getElementById('quiz-counter').innerText = `${currentIndex + 1} / ${currentSession.length}`;
+    // 残り未クリア問題数のカウント表示
+    const remainingCount = currentSession.length - currentIndex;
+    document.getElementById('quiz-counter').innerText = `選択範囲の残り未クリア: ${remainingCount} 問`;
+    
     document.getElementById('japanese-text').innerText = q.E;
     document.getElementById('feedback').innerText = "";
     document.getElementById('model-answer-section').style.display = "none";
+    document.getElementById('next-btn').style.display = 'none';
+    document.getElementById('check-btn').style.display = 'block';
+    document.getElementById('hint-btn').style.display = 'block';
+
+    document.querySelectorAll('#drop-area .slot').forEach(s => {
+        const wrappers = s.querySelectorAll('.piece-wrapper');
+        wrappers.forEach(w => w.remove());
+    });
+    const area = document.getElementById('piece-area');
+    area.innerHTML = "";
     
-    const sortOnlyEls = document.querySelectorAll('.sort-only');
-    const writingMsg = document.getElementById('writing-msg');
-    const nextBtn = document.getElementById('next-btn');
-    const checkBtn = document.getElementById('check-btn');
-
-    if(currentMode === 'sort') {
-        sortOnlyEls.forEach(el => el.style.display = '');
-        writingMsg.style.display = 'none';
-        nextBtn.style.display = 'none';
-        checkBtn.style.display = 'block';
-        document.getElementById('hint-btn').style.display = 'block';
-
-        document.querySelectorAll('#drop-area .slot').forEach(s => {
-            const wrappers = s.querySelectorAll('.piece-wrapper');
-            wrappers.forEach(w => w.remove());
-        });
-        const area = document.getElementById('piece-area');
-        area.innerHTML = "";
-        
-        let rawWords = [];
-        q.D.split(' ').forEach(item => { 
-            const parts = item.split(':');
-            const phrase = parts[0];
-            phrase.split('_').forEach(w => rawWords.push(w)); 
-        });
-        rawWords.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
-    } else {
-        sortOnlyEls.forEach(el => el.style.display = 'none');
-        writingMsg.style.display = 'block';
-        nextBtn.style.display = 'block';
-        checkBtn.style.display = 'none';
-    }
+    let rawWords = [];
+    q.D.split(' ').forEach(item => { 
+        const parts = item.split(':');
+        const phrase = parts[0];
+        phrase.split('_').forEach(w => rawWords.push(w)); 
+    });
+    rawWords.sort(()=>Math.random()-0.5).forEach(w => createPiece(w, area, false));
 }
 
 function createPiece(text, target, hasHint, hintText = "") {
@@ -427,7 +394,6 @@ function handleSlotClick(targetZone) {
 }
 
 function checkAnswer() {
-    if (currentMode !== 'sort') return;
     const q = currentSession[currentIndex];
     const safeId = String(q.id).trim();
     const slots = document.querySelectorAll('#drop-area .slot');
@@ -456,7 +422,6 @@ function checkAnswer() {
     }
 }
 
-// 模範解答表示
 function showModelAnswer(q) {
     const modelSlots = document.querySelectorAll('#model-drop-area .slot');
     const cols = ['G', 'H', 'I', 'J', 'K'];
@@ -496,28 +461,15 @@ function showModelAnswer(q) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+// 次の問題に進む処理（出題プールが終わるまで連続出題）
 function goToNextQuestion() {
     stopConfetti();
     if(++currentIndex < currentSession.length) {
         showQuestion();
     } else {
-        if(currentMode === 'writing') showFinalResults();
-        else { alert("10問終了！"); location.reload(); }
+        alert("🎉 おめでとうございます！選択した範囲の問題をすべてクリアしました！");
+        location.reload();
     }
-}
-
-function showFinalResults() {
-    document.getElementById('quiz-screen').style.display = 'none';
-    const resultScreen = document.getElementById('result-screen');
-    const resultList = document.getElementById('result-list');
-    resultScreen.style.display = 'flex';
-    resultList.innerHTML = "";
-    currentSession.forEach(q => {
-        const fullEn = [q.G, q.H, q.I, q.J, q.K].filter(v => v).join(' ');
-        const item = document.createElement('div'); item.className = 'result-item';
-        item.innerHTML = `<div class="result-jp">${q.E}</div><div class="result-en">${fullEn}</div>`;
-        resultList.appendChild(item);
-    });
 }
 
 function applyHint() {
@@ -581,10 +533,7 @@ function toggleAll(type, isCheck) {
     onFilterChange();
 }
 
-// =========================================================
-// 【安全データ合体＆移行コード】
-// 過去の最初期キー(eng_v5_logs)からデータをprojectAへ救出して移行
-// =========================================================
+// データ合体・移行コード
 (function() {
     const rootKey = 'eng_v5_logs';               
     const targetKey = ACTIVE_LOGS_KEY;          
