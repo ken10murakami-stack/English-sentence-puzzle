@@ -97,11 +97,10 @@
                 <div id="filter-cat" class="checkbox-list"></div>
                 <div style="margin-top:10px; text-align:right;"><button class="btn-text-danger" onclick="resetFilteredProgress()">選択中の範囲の記録をリセット</button></div>
             </div>
-            <div class="filter-group"><div class="group-header"><h3>レベル</h3></div><div id="filter-lv" class="checkbox-list"></div></div>
+            <div class="filter-group"><div class="group-header"><h3>レベル（タブ名）</h3></div><div id="filter-lv" class="checkbox-list"></div></div>
         </div>
 
         <div class="action-bar" style="flex-wrap: wrap;">
-            <!-- 並べ替え練習開始ボタンのみに集約 -->
             <button class="btn btn-primary" style="font-size: 1.3rem; padding: 15px 50px;" onclick="startLesson()">並べ替え練習開始</button>
             <div style="width:100%; display:flex; justify-content:center; gap:15px; margin-top:10px;">
                 <button class="btn btn-outline" onclick="exportData()">記録保存</button>
@@ -142,7 +141,6 @@
     <div id="quiz-screen">
         <div style="display:flex; justify-content: space-between; align-items:center;">
             <button class="btn-mini-reset" style="padding:8px 15px;" onclick="location.reload()">◀ ホーム</button>
-            <!-- 残り問題数をリアルタイム表示 -->
             <div id="quiz-counter" style="font-weight:bold; color: var(--primary);">残り未クリア: - 問</div>
             <button class="btn btn-hint" id="hint-btn" onclick="applyHint()">ヒント</button>
         </div>
@@ -181,7 +179,7 @@
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwajaQl0yY5F4i9XuihcIh81Xm_5H9xmVgR0nZJIrZcRwiRv-8IomF4soAzJ_Ymp9ddMQ/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbzdbSSeF68dcVQXryDx9Qc8hrU-eVhyWluHvbrxS_iudcIi0iZF066vbuFUufB8CBlGYg/exec';
 let database = [];
 
 const ACTIVE_LOGS_KEY = 'eng_v5_logs_projectA';
@@ -228,7 +226,13 @@ function setupFilters() {
     const types = { grade: 'filter-grade', cat: 'filter-cat', lv: 'filter-lv' };
     Object.keys(types).forEach(key => {
         const container = document.getElementById(types[key]);
-        const items = [...new Set(database.map(d => String(d[key] || "").trim()))].filter(v => v !== "");
+        // 読み込まれた順（スプレッドシートのタブ順）を維持して重複排除
+        const items = [];
+        database.forEach(d => {
+            const val = String(d[key] || "").trim();
+            if (val !== "" && !items.includes(val)) items.push(val);
+        });
+        
         container.innerHTML = ""; 
         items.forEach(item => {
             const div = document.createElement('div');
@@ -273,7 +277,14 @@ function renderMatrix() {
     const head = document.getElementById('matrix-head');
     const body = document.getElementById('matrix-body');
     const cats = [...new Set(database.map(d => String(d.cat).trim()))].sort();
-    const lvs = [...new Set(database.map(d => String(d.lv).trim()))].sort((a,b) => a.localeCompare(b, undefined, {numeric: true}));
+    
+    // レベル（タブ名）はデータベースに登場する順序を尊重
+    const lvs = [];
+    database.forEach(d => {
+        const val = String(d.lv).trim();
+        if (val !== "" && !lvs.includes(val)) lvs.push(val);
+    });
+
     head.innerHTML = `<th>文法項目</th>` + lvs.map(l => `<th>${l}</th>`).join('');
     body.innerHTML = cats.map(cat => {
         let row = `<tr><td class="cat-name">${cat}</td>`;
@@ -313,14 +324,12 @@ function renderSentenceList(filteredPool) {
     }).join('');
 }
 
-// レッスン開始（上限無しの全未クリア抽出へ変更）
 function startLesson() {
     const getSel = (t) => Array.from(document.querySelectorAll(`input[data-type="${t}"]:checked`)).map(i => i.value);
     const filterPool = database.filter(d => getSel('grade').includes(String(d.grade).trim()) && getSel('cat').includes(String(d.cat).trim()) && getSel('lv').includes(String(d.lv).trim()));
     
     if(!filterPool.length) return alert("条件に合う問題がありません。");
 
-    // 未完了（streakが0またはデータなし）の問題を全件ランダムで抽出
     currentSession = filterPool.filter(d => (studyLogs[String(d.id).trim()]?.streak || 0) === 0).sort(() => Math.random() - 0.5);
     
     if(!currentSession.length) return alert("選択した範囲には未完了の問題がありません！すべてクリア済みです。");
@@ -337,7 +346,6 @@ function showQuestion() {
     const q = currentSession[currentIndex];
     isHintUsed = false;
     
-    // 残り未クリア問題数のカウント表示
     const remainingCount = currentSession.length - currentIndex;
     document.getElementById('quiz-counter').innerText = `選択範囲の残り未クリア: ${remainingCount} 問`;
     
@@ -461,7 +469,6 @@ function showModelAnswer(q) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// 次の問題に進む処理（出題プールが終わるまで連続出題）
 function goToNextQuestion() {
     stopConfetti();
     if(++currentIndex < currentSession.length) {
